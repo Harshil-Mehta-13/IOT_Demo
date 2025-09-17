@@ -6,8 +6,8 @@ import os
 import requests
 
 # --- CONFIG: read from Streamlit secrets (set these when deploying)
-SUPABASE_URL = st.secrets["SUPABASE_URL"]
-SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
+SUPABASE_URL = st.secrets["https://ynodggqmitbqluwmljjg.supabase.co"]
+SUPABASE_KEY = st.secrets["eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlub2RnZ3FtaXRicWx1d21sampnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ0NzE1MDcsImV4cCI6MjA3MDA0NzUwN30.LTf5dUJL3Y4-bofHZ-pZ1mWAv60gX0FDON5uIzjgCWM"]
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
