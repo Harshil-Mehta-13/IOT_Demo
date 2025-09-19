@@ -74,4 +74,4 @@ else:
 st.markdown("---")
 st.write("Dashboard auto-refreshes every 5 seconds.")
 time.sleep(5)
-st.experimental_rerun()
+st.rerun() # This has been changed to st.rerun()
