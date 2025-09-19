@@ -54,9 +54,10 @@ selected_parameter = st.selectbox(
 dashboard_container = st.empty()
 
 while True:
-    with dashboard_container.container():
-        df = get_sensor_data()
+    # Fetch data outside the placeholder context
+    df = get_sensor_data()
 
+    with dashboard_container.container():
         # --- Display Latest Values ---
         if not df.empty:
             latest_data = df.iloc[-1]
