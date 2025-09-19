@@ -5,8 +5,8 @@ import datetime
 import requests
 
 # --- CONFIG: read from Streamlit secrets (set these when deploying)
-SUPABASE_URL = st.secrets["https://ynodggqmitbqluwmljjg.supabase.co/rest/v1/air_compressor"]
-SUPABASE_KEY = st.secrets["sb_secret_rYIJk4leuf6v_uCY-hcNIg_4hPuY4tP"]
+SUPABASE_URL = st.secrets[]
+SUPABASE_KEY = st.secrets[]
 
 # ✅ Initialize Supabase client properly
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
