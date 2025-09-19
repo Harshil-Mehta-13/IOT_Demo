@@ -5,15 +5,14 @@ import time
 
 # --- Page Configuration ---
 st.set_page_config(
-    page_title="Compressor IoT Dashboard",
+    page_title="Air Compressor Dashboard",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
 # --- Supabase Connection ---
-@st.cache_resource(ttl="30s") # Cache connection for 30 seconds
+@st.cache_resource(ttl="30s")
 def init_connection():
-    # Correctly access secrets using their variable names
     url = st.secrets["SUPABASE_URL"]
     key = st.secrets["SUPABASE_KEY"]
     return create_client(url, key)
@@ -21,7 +20,7 @@ def init_connection():
 supabase_client = init_connection()
 
 # --- Functions to Fetch Data ---
-@st.cache_data(ttl="5s") # Cache data for 5 seconds to keep dashboard "live"
+@st.cache_data(ttl="5s")
 def get_sensor_data():
     try:
         response = supabase_client.table("air_compressor").select("*").order("timestamp", desc=True).limit(100).execute()
@@ -63,10 +62,20 @@ if not df.empty:
 
     st.markdown("---")
 
-# --- Display Historical Charts ---
+# --- Display Interactive Chart with Dropdown ---
 st.header("Historical Trends")
 if not df.empty:
-    st.line_chart(df[['temperature', 'pressure', 'vibration']], use_container_width=True)
+    # Get a list of the parameters to plot from the DataFrame columns
+    parameters = ['temperature', 'pressure', 'vibration']
+    
+    # Create the selectbox for the user to choose a parameter
+    selected_parameter = st.selectbox(
+        'Select a parameter to view:',
+        options=parameters
+    )
+
+    # Plot the selected parameter
+    st.line_chart(df[[selected_parameter]], use_container_width=True)
 else:
     st.info("Waiting for data to arrive from the ESP32...")
 
