@@ -40,7 +40,6 @@ def get_sensor_data():
 
 # --- Dashboard Layout ---
 st.title("Air Compressor Monitoring Dashboard ⚙️")
-st.markdown("---")
 
 # Get a list of the parameters to plot from the DataFrame columns
 parameters = ['temperature', 'pressure', 'vibration']
@@ -62,7 +61,7 @@ while True:
         if not df.empty:
             latest_data = df.iloc[-1]
             
-            st.header("Latest Readings")
+            st.subheader("Latest Readings")
             col1, col2, col3 = st.columns(3)
             
             with col1:
@@ -74,10 +73,8 @@ while True:
             with col3:
                 st.metric(label="Vibration", value=f"{latest_data['vibration']:.4f}")
 
-            st.markdown("---")
-
         # --- Display Interactive Chart ---
-        st.header("Historical Trends")
+        st.subheader("Historical Trends")
         if not df.empty:
             # Plot the selected parameter
             st.line_chart(df[[selected_parameter]], use_container_width=True)
