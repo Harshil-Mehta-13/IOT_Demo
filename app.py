@@ -42,45 +42,47 @@ def get_sensor_data():
 st.title("Air Compressor Monitoring Dashboard ⚙️")
 st.markdown("---")
 
-df = get_sensor_data()
+# Use a placeholder for the live-updating content
+dashboard_container = st.empty()
 
-# --- Display Latest Values ---
-if not df.empty:
-    latest_data = df.iloc[-1]
+while True:
+    with dashboard_container.container():
+        df = get_sensor_data()
+
+        # --- Display Latest Values ---
+        if not df.empty:
+            latest_data = df.iloc[-1]
+            
+            st.header("Latest Readings")
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                st.metric(label="Temperature (°C)", value=f"{latest_data['temperature']:.2f}")
+
+            with col2:
+                st.metric(label="Pressure (bar)", value=f"{latest_data['pressure']:.2f}")
+
+            with col3:
+                st.metric(label="Vibration", value=f"{latest_data['vibration']:.4f}")
+
+            st.markdown("---")
+
+        # --- Display Interactive Chart with Dropdown ---
+        st.header("Historical Trends")
+        if not df.empty:
+            # Get a list of the parameters to plot from the DataFrame columns
+            parameters = ['temperature', 'pressure', 'vibration']
+            
+            # Create the selectbox for the user to choose a parameter
+            selected_parameter = st.selectbox(
+                'Select a parameter to view:',
+                options=parameters
+            )
+
+            # Plot the selected parameter
+            st.line_chart(df[[selected_parameter]], use_container_width=True)
+        else:
+            st.info("Waiting for data to arrive from the ESP32...")
     
-    st.header("Latest Readings")
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        st.metric(label="Temperature (°C)", value=f"{latest_data['temperature']:.2f}")
-
-    with col2:
-        st.metric(label="Pressure (bar)", value=f"{latest_data['pressure']:.2f}")
-
-    with col3:
-        st.metric(label="Vibration", value=f"{latest_data['vibration']:.4f}")
-
-    st.markdown("---")
-
-# --- Display Interactive Chart with Dropdown ---
-st.header("Historical Trends")
-if not df.empty:
-    # Get a list of the parameters to plot from the DataFrame columns
-    parameters = ['temperature', 'pressure', 'vibration']
-    
-    # Create the selectbox for the user to choose a parameter
-    selected_parameter = st.selectbox(
-        'Select a parameter to view:',
-        options=parameters
-    )
-
-    # Plot the selected parameter
-    st.line_chart(df[[selected_parameter]], use_container_width=True)
-else:
-    st.info("Waiting for data to arrive from the ESP32...")
-
-# --- Auto-refresh logic ---
-st.markdown("---")
-st.write("Dashboard auto-refreshes every 5 seconds.")
-time.sleep(5)
-st.rerun()
+    # Wait for 5 seconds before fetching new data
+    time.sleep(5)
