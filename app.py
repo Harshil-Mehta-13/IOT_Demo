@@ -42,6 +42,15 @@ def get_sensor_data():
 st.title("Air Compressor Monitoring Dashboard ⚙️")
 st.markdown("---")
 
+# Get a list of the parameters to plot from the DataFrame columns
+parameters = ['temperature', 'pressure', 'vibration']
+
+# Create the selectbox for the user to choose a parameter, OUTSIDE the loop
+selected_parameter = st.selectbox(
+    'Select a parameter to view:',
+    options=parameters
+)
+
 # Use a placeholder for the live-updating content
 dashboard_container = st.empty()
 
@@ -67,18 +76,9 @@ while True:
 
             st.markdown("---")
 
-        # --- Display Interactive Chart with Dropdown ---
+        # --- Display Interactive Chart ---
         st.header("Historical Trends")
         if not df.empty:
-            # Get a list of the parameters to plot from the DataFrame columns
-            parameters = ['temperature', 'pressure', 'vibration']
-            
-            # Create the selectbox for the user to choose a parameter
-            selected_parameter = st.selectbox(
-                'Select a parameter to view:',
-                options=parameters
-            )
-
             # Plot the selected parameter
             st.line_chart(df[[selected_parameter]], use_container_width=True)
         else:
