@@ -11,9 +11,8 @@ st.set_page_config(
 )
 
 # --- Supabase Connection ---
-@st.cache_resource(ttl="30s") # Cache connection for 30 seconds
+@st.cache_resource(ttl="30s")
 def init_connection():
-    # Correctly access secrets using their variable names
     url = st.secrets["SUPABASE_URL"]
     key = st.secrets["SUPABASE_KEY"]
     return create_client(url, key)
@@ -21,7 +20,7 @@ def init_connection():
 supabase_client = init_connection()
 
 # --- Functions to Fetch Data ---
-@st.cache_data(ttl="5s") # Cache data for 5 seconds to keep dashboard "live"
+@st.cache_data(ttl="5s")
 def get_sensor_data():
     try:
         response = supabase_client.table("air_compressor").select("*").order("timestamp", desc=True).limit(100).execute()
@@ -74,4 +73,4 @@ else:
 st.markdown("---")
 st.write("Dashboard auto-refreshes every 5 seconds.")
 time.sleep(5)
-st.rerun() # This has been changed to st.rerun()
+st.rerun()
