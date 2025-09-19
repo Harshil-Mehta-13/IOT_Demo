@@ -13,6 +13,7 @@ st.set_page_config(
 # --- Supabase Connection ---
 @st.cache_resource(ttl="30s") # Cache connection for 30 seconds
 def init_connection():
+    # Correctly access secrets using their variable names
     url = st.secrets["https://ynodggqmitbqluwmljjg.supabase.co/rest/v1/air_compressor"]
     key = st.secrets["eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlub2RnZ3FtaXRicWx1d21sampnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ0NzE1MDcsImV4cCI6MjA3MDA0NzUwN30.LTf5dUJL3Y4-bofHZ-pZ1mWAv60gX0FDON5uIzjgCWM"]
     return create_client(url, key)
