@@ -1,82 +1,76 @@
 import streamlit as st
 import pandas as pd
 from supabase import create_client, Client
-import datetime
-import requests
+import time
 
-# --- CONFIG: read from Streamlit secrets (set these when deploying)
-SUPABASE_URL = st.secrets[]
-SUPABASE_KEY = st.secrets[]
+# --- Page Configuration ---
+st.set_page_config(
+    page_title="Compressor IoT Dashboard",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-# ✅ Initialize Supabase client properly
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+# --- Supabase Connection ---
+@st.cache_resource(ttl="30s") # Cache connection for 30 seconds
+def init_connection():
+    url = st.secrets["https://ynodggqmitbqluwmljjg.supabase.co/rest/v1/air_compressor"]
+    key = st.secrets["eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlub2RnZ3FtaXRicWx1d21sampnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ0NzE1MDcsImV4cCI6MjA3MDA0NzUwN30.LTf5dUJL3Y4-bofHZ-pZ1mWAv60gX0FDON5uIzjgCWM"]
+    return create_client(url, key)
 
-st.set_page_config(page_title="Air Compressor Monitor", layout="wide")
-st.title("🛠 Air Compressor Monitoring Dashboard (Prototype)")
+supabase_client = init_connection()
 
-# --- Fetch data from Supabase
-@st.cache_data(ttl=10)
-def load_data():
+# --- Functions to Fetch Data ---
+@st.cache_data(ttl="5s") # Cache data for 5 seconds to keep dashboard "live"
+def get_sensor_data():
     try:
-        resp = supabase.table("air_compressor").select("*").order("timestamp", desc=True).execute()
-        data = resp.data
+        response = supabase_client.table("air_compressor").select("*").order("timestamp", desc=True).limit(100).execute()
+        data = response.data
         if not data:
+            st.warning("No data found in the database. Please check your ESP32 connection.")
             return pd.DataFrame()
+
         df = pd.DataFrame(data)
-        # ensure timestamp is datetime
-        if "timestamp" in df.columns:
-            df["timestamp"] = pd.to_datetime(df["timestamp"])
+        df["timestamp"] = pd.to_datetime(df["timestamp"])
+        df = df.set_index("timestamp").sort_index()
         return df
+
     except Exception as e:
-        st.error(f"Error fetching data: {e}")
+        st.error(f"Error fetching data from Supabase: {e}")
         return pd.DataFrame()
 
-df = load_data()
+# --- Dashboard Layout ---
+st.title("Air Compressor Monitoring Dashboard ⚙️")
+st.markdown("---")
 
-if df.empty:
-    st.warning("⚠ No data yet. Run the Wokwi/ESP32 simulator to send data.")
-    st.stop()
+df = get_sensor_data()
 
-# --- Sidebar filters
-st.sidebar.header("Filters")
-compressors = sorted(df["compressor_id"].unique())
-selected_comp = st.sidebar.selectbox("Compressor", ["All"] + compressors)
+# --- Display Latest Values ---
+if not df.empty:
+    latest_data = df.iloc[-1]
+    
+    st.header("Latest Readings")
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.metric(label="Temperature (°C)", value=f"{latest_data['temperature']:.2f}")
 
-min_dt = df["timestamp"].min()
-max_dt = df["timestamp"].max()
-start_date = st.sidebar.date_input("Start date", min_dt.date())
-end_date = st.sidebar.date_input("End date", max_dt.date())
+    with col2:
+        st.metric(label="Pressure (bar)", value=f"{latest_data['pressure']:.2f}")
 
-# filter df
-mask = (df["timestamp"].dt.date >= start_date) & (df["timestamp"].dt.date <= end_date)
-if selected_comp != "All":
-    mask &= (df["compressor_id"] == selected_comp)
-df_filt = df.loc[mask].sort_values("timestamp")
+    with col3:
+        st.metric(label="Vibration", value=f"{latest_data['vibration']:.4f}")
 
-# --- Summary section
-st.subheader("Summary")
-col1, col2, col3 = st.columns(3)
-if not df_filt.empty:
-    col1.metric("Latest Pressure", f"{df_filt.iloc[-1]['pressure']:.2f} bar")
-    col2.metric("Latest Temp", f"{df_filt.iloc[-1]['temperature']:.2f} °C")
-    col3.metric("Records", len(df_filt))
+    st.markdown("---")
+
+# --- Display Historical Charts ---
+st.header("Historical Trends")
+if not df.empty:
+    st.line_chart(df[['temperature', 'pressure', 'vibration']], use_container_width=True)
 else:
-    col1.write("No data in range")
+    st.info("Waiting for data to arrive from the ESP32...")
 
-# --- Charts
-st.subheader("📈 Time Series Trends")
-if not df_filt.empty:
-    chart_data = df_filt.set_index("timestamp")[["pressure", "temperature"]]
-    st.line_chart(chart_data)
-
-# --- Data log table
-st.subheader("📋 Data Log")
-st.dataframe(df_filt, use_container_width=True)
-
-# --- CSV Download
-@st.cache_data
-def to_csv(df_):
-    return df_.to_csv(index=False).encode("utf-8")
-
-if not df_filt.empty:
-    st.download_button("⬇ Download CSV", to_csv(df_filt), file_name="compressor_data.csv")
+# --- Auto-refresh logic ---
+st.markdown("---")
+st.write("Dashboard auto-refreshes every 5 seconds.")
+time.sleep(5)
+st.experimental_rerun()
