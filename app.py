@@ -44,8 +44,32 @@ def get_sensor_data():
         st.error(f"Error fetching data: {e}")
         return pd.DataFrame()
 
-# --- Helper Function for Status ---
-def get_status(value, param_name):
+# --- Helper Functions ---
+def get_status_color(value, param_name):
+    if param_name == 'temperature':
+        if value > 80:
+            return "#ff4b4b" # red
+        elif value > 60:
+            return "#ffcc00" # orange
+        else:
+            return "#2ec27e" # green
+    elif param_name == 'pressure':
+        if value > 12:
+            return "#ff4b4b"
+        elif value > 9:
+            return "#ffcc00"
+        else:
+            return "#2ec27e"
+    elif param_name == 'vibration':
+        if value > 5:
+            return "#ff4b4b"
+        elif value > 3:
+            return "#ffcc00"
+        else:
+            return "#2ec27e"
+    return "#2ec27e"
+
+def get_status_text(value, param_name):
     if param_name == 'temperature':
         if value > 80:
             return "Critical"
@@ -73,96 +97,92 @@ def get_status(value, param_name):
 st.title("Air Compressor Monitoring Dashboard ⚙️")
 st.markdown("A real-time dashboard for tracking key operational metrics of an air compressor.")
 
-# Fetch the data at the start of the script run
+# Fetch the data
 df = get_sensor_data()
 
-# Check if DataFrame is empty
-if df.empty:
-    st.warning("No data available. Please check your ESP32 connection.")
-else:
-    latest = df.iloc[-1]
-    
-    # --- KPI Cards ---
-    st.subheader("Latest Readings & Status")
-    col1, col2, col3 = st.columns(3)
+# --- Tabs ---
+tab1, tab2 = st.tabs(["📊 Dashboard", "📂 Database"])
 
-    # Temperature KPI Card
-    with col1:
-        temp_status = get_status(latest["temperature"], 'temperature')
-        st.metric(label="🌡️ Temperature (°C)", value=f"{latest['temperature']:.2f}")
-        status_color = "red" if temp_status == "Critical" else ("orange" if temp_status == "Warning" else "green")
-        st.markdown(f"**Status:** <span style='color: {status_color};'>{temp_status}</span>", unsafe_allow_html=True)
+with tab1:
+    if df.empty:
+        st.warning("No data available. Please check your ESP32 connection.")
+    else:
+        latest = df.iloc[-1]
         
-    # Pressure KPI Card
-    with col2:
-        pressure_status = get_status(latest["pressure"], 'pressure')
-        st.metric(label="PSI Pressure (bar)", value=f"{latest['pressure']:.2f}")
-        status_color = "red" if pressure_status == "Critical" else ("orange" if pressure_status == "Warning" else "green")
-        st.markdown(f"**Status:** <span style='color: {status_color};'>{pressure_status}</span>", unsafe_allow_html=True)
+        # --- KPI Cards ---
+        st.subheader("Latest Readings & Status")
+        col1, col2, col3 = st.columns(3)
 
-    # Vibration KPI Card
-    with col3:
-        vibration_status = get_status(latest["vibration"], 'vibration')
-        st.metric(label="📳 Vibration", value=f"{latest['vibration']:.2f}")
-        status_color = "red" if vibration_status == "Critical" else ("orange" if vibration_status == "Warning" else "green")
-        st.markdown(f"**Status:** <span style='color: {status_color};'>{vibration_status}</span>", unsafe_allow_html=True)
-
-    st.markdown("---")
-
-    # --- Trend Charts ---
-    st.subheader("Historical Trends")
-    
-    parameters = ['temperature', 'pressure', 'vibration']
-
-    # Combined chart for all parameters
-    st.markdown("##### All Sensor Parameters")
-    df_melt = df.reset_index().melt('timestamp', var_name='Parameter', value_name='Value')
-    fig_combined = px.line(df_melt, x='timestamp', y='Value', color='Parameter',
-                           title='Combined Sensor Trends')
-    st.plotly_chart(fig_combined, use_container_width=True)
-
-    st.markdown("---")
-
-    # Detailed chart for selected parameter with thresholds
-    selected_parameter = st.selectbox(
-        'Select a parameter for detailed trend analysis:',
-        options=parameters,
-        key='parameter_select_box',
-        index=0
-    )
-
-    st.markdown(f"##### Detailed Trend for {selected_parameter.title()}")
-    fig_detailed = px.line(df, x=df.index, y=selected_parameter, 
-                           title=f'{selected_parameter.title()} Trend Over Time')
-    
-    # Add threshold lines based on the selected parameter
-    if selected_parameter == 'temperature':
-        fig_detailed.add_hline(y=60, line_dash="dash", line_color="orange", annotation_text="Warning Threshold")
-        fig_detailed.add_hline(y=80, line_dash="dash", line_color="red", annotation_text="Critical Threshold")
-    elif selected_parameter == 'pressure':
-        fig_detailed.add_hline(y=9, line_dash="dash", line_color="orange", annotation_text="Warning Threshold")
-        fig_detailed.add_hline(y=12, line_dash="dash", line_color="red", annotation_text="Critical Threshold")
-    elif selected_parameter == 'vibration':
-        fig_detailed.add_hline(y=3, line_dash="dash", line_color="orange", annotation_text="Warning Threshold")
-        fig_detailed.add_hline(y=5, line_dash="dash", line_color="red", annotation_text="Critical Threshold")
+        with col1:
+            st.markdown(f"""
+                <div style="
+                    background-color: #f0f2f6;
+                    border-radius: 10px;
+                    padding: 20px;
+                    text-align: center;
+                ">
+                    <p style="font-size: 1.2em; font-weight: bold;">🌡️ Temperature (°C)</p>
+                    <p style="font-size: 2.5em; font-weight: bold; color: {get_status_color(latest['temperature'], 'temperature')};">{latest['temperature']:.2f}</p>
+                    <p style="color: #666; font-size: 1em;">Status: {get_status_text(latest['temperature'], 'temperature')}</p>
+                </div>
+            """, unsafe_allow_html=True)
+            
+        with col2:
+            st.markdown(f"""
+                <div style="
+                    background-color: #f0f2f6;
+                    border-radius: 10px;
+                    padding: 20px;
+                    text-align: center;
+                ">
+                    <p style="font-size: 1.2em; font-weight: bold;">PSI Pressure (bar)</p>
+                    <p style="font-size: 2.5em; font-weight: bold; color: {get_status_color(latest['pressure'], 'pressure')};">{latest['pressure']:.2f}</p>
+                    <p style="color: #666; font-size: 1em;">Status: {get_status_text(latest['pressure'], 'pressure')}</p>
+                </div>
+            """, unsafe_allow_html=True)
         
-    st.plotly_chart(fig_detailed, use_container_width=True)
+        with col3:
+            st.markdown(f"""
+                <div style="
+                    background-color: #f0f2f6;
+                    border-radius: 10px;
+                    padding: 20px;
+                    text-align: center;
+                ">
+                    <p style="font-size: 1.2em; font-weight: bold;">📳 Vibration</p>
+                    <p style="font-size: 2.5em; font-weight: bold; color: {get_status_color(latest['vibration'], 'vibration')};">{latest['vibration']:.2f}</p>
+                    <p style="color: #666; font-size: 1em;">Status: {get_status_text(latest['vibration'], 'vibration')}</p>
+                </div>
+            """, unsafe_allow_html=True)
 
-    st.markdown("---")
+        st.markdown("---")
 
-    # Raw Data Expander
-    with st.expander("📂 View Raw Data"):
-        st.dataframe(df, use_container_width=True, height=300)
+        # --- Trend Chart ---
+        st.subheader("Historical Trends")
         
-        csv = df.to_csv().encode("utf-8")
+        df_melt = df.reset_index().melt('timestamp', var_name='Parameter', value_name='Value')
+        fig = px.line(df_melt, x='timestamp', y='Value', color='Parameter',
+                      title='Combined Sensor Trends')
+        
+        st.plotly_chart(fig, use_container_width=True)
+
+with tab2:
+    st.subheader("Raw Database Data")
+    if df.empty:
+        st.warning("No records in database.")
+    else:
+        st.dataframe(df, use_container_width=True, height=500)
+        
+        # Download button
+        csv = df.to_csv().encode('utf-8')
         st.download_button(
             "⬇️ Download CSV",
             csv,
             "air_compressor_data.csv",
             "text/csv",
-            key="download-csv"
+            key='download-csv'
         )
-        
+
 # --- Auto Refresh ---
 time.sleep(5)
 st.rerun()
