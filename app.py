@@ -159,11 +159,11 @@ if app_mode == "Live Dashboard":
                     st.plotly_chart(fig_temp, use_container_width=True, key=f"live_temp_{time.time()}")
                 with chart_col2:
                     st.markdown("##### Pressure Trend")
-                    fig_pressure = create_chart(live_df, '', 'Pressure Trend', '#88d8b0', 9, 12, height=350)
+                    fig_pressure = create_chart(live_df, 'pressure', '', '#88d8b0', 9, 12, height=350)
                     st.plotly_chart(fig_pressure, use_container_width=True, key=f"live_pressure_{time.time()}")
                 with chart_col3:
                     st.markdown("##### Vibration Trend")
-                    fig_vibration = create_chart(live_df, '', 'Vibration Trend', '#6a5acd', 3, 5, height=350)
+                    fig_vibration = create_chart(live_df, 'vibration', '', '#6a5acd', 3, 5, height=350)
                     st.plotly_chart(fig_vibration, use_container_width=True, key=f"live_vibration_{time.time()}")
         
         time.sleep(5)
