@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 from supabase import create_client
-from datetime import datetime
 from streamlit_autorefresh import st_autorefresh
 
 # --- Page Configuration ---
@@ -11,7 +10,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- Auto Refresh every 5s ---
+# --- Auto Refresh every 5 seconds ---
 st_autorefresh(interval=5000, key="data_refresh")
 
 # --- Supabase Connection ---
@@ -23,75 +22,106 @@ def init_connection():
 
 supabase_client = init_connection()
 
-# --- Functions to Fetch Data ---
+# --- Fetch Sensor Data ---
 @st.cache_data(ttl=5)
-def get_sensor_data(limit=500):
-    response = supabase_client.table("air_compressor").select("*").order("timestamp", desc=True).limit(limit).execute()
-    data = response.data
-    if not data:
+def get_sensor_data():
+    try:
+        response = (
+            supabase_client.table("air_compressor")
+            .select("*")
+            .order("timestamp", desc=True)
+            .limit(500)
+            .execute()
+        )
+        data = response.data
+        if not data:
+            return pd.DataFrame()
+
+        df = pd.DataFrame(data)
+        df["timestamp"] = pd.to_datetime(df["timestamp"])
+        df = df.set_index("timestamp").sort_index()
+        return df
+
+    except Exception as e:
+        st.error(f"Error fetching data from Supabase: {e}")
         return pd.DataFrame()
-    df = pd.DataFrame(data)
-    df["timestamp"] = pd.to_datetime(df["timestamp"])
-    df = df.set_index("timestamp").sort_index()
-    return df
 
-# --- Tabs ---
-tab_dashboard, tab_database, tab_reports = st.tabs(["📊 Dashboard", "📂 Database", "📈 Reports"])
+# --- Main Title ---
+st.title("⚙️ Air Compressor Monitoring System")
 
-# ---------------- Dashboard Tab ----------------
-with tab_dashboard:
-    st.header("Air Compressor Monitoring ⚙️")
+# --- Tabs Layout ---
+tab1, tab2, tab3 = st.tabs(["📊 Dashboard", "🗄 Database", "📈 Reports"])
 
+# ================= DASHBOARD =================
+with tab1:
     df = get_sensor_data()
 
-    if df.empty:
-        st.warning("No data found in Supabase.")
+    if not df.empty:
+        latest = df.iloc[-1]
+
+        # Latest metrics
+        st.subheader("Latest Readings")
+        col1, col2, col3, col4 = st.columns(4)
+
+        with col1:
+            st.metric("🌡 Temperature (°C)", f"{latest['temperature']:.2f}")
+        with col2:
+            st.metric("💧 Humidity (%)", f"{latest['humidity']:.2f}")
+        with col3:
+            st.metric("⏱ Pressure (bar)", f"{latest['pressure']:.2f}")
+        with col4:
+            st.metric("📳 Vibration", f"{latest['vibration']:.4f}")
+
+        # Trend charts
+        st.subheader("Historical Trends")
+        chart_cols = st.columns(2)
+
+        with chart_cols[0]:
+            st.line_chart(df[["temperature", "humidity"]], use_container_width=True)
+
+        with chart_cols[1]:
+            st.line_chart(df[["pressure", "vibration"]], use_container_width=True)
+
     else:
-        latest_data = df.iloc[-1]
+        st.info("Waiting for data to arrive from the ESP32...")
 
-        # Latest readings
-        col1, col2, col3 = st.columns(3)
-        col1.metric("Temperature (°C)", f"{latest_data['temperature']:.2f}")
-        col2.metric("Pressure (bar)", f"{latest_data['pressure']:.2f}")
-        col3.metric("Vibration", f"{latest_data['vibration']:.4f}")
+# ================= DATABASE =================
+with tab2:
+    df = get_sensor_data()
+    st.subheader("Database View")
 
-        # Summary values
-        st.subheader("Summary Statistics")
-        col4, col5, col6 = st.columns(3)
-        col4.metric("Avg Temp (°C)", f"{df['temperature'].mean():.2f}")
-        col5.metric("Avg Pressure (bar)", f"{df['pressure'].mean():.2f}")
-        col6.metric("Avg Vibration", f"{df['vibration'].mean():.4f}")
-
-        # Charts grid (non-scrolling)
-        st.subheader("Trends")
-        chart_col1, chart_col2, chart_col3 = st.columns(3)
-        with chart_col1:
-            st.line_chart(df[["temperature"]], use_container_width=True)
-        with chart_col2:
-            st.line_chart(df[["pressure"]], use_container_width=True)
-        with chart_col3:
-            st.line_chart(df[["vibration"]], use_container_width=True)
-
-# ---------------- Database Tab ----------------
-with tab_database:
-    st.header("Database Viewer 📂")
-    df = get_sensor_data(limit=1000)
-
-    if df.empty:
-        st.info("No data available.")
-    else:
+    if not df.empty:
         st.dataframe(df, use_container_width=True, height=400)
 
-        # Download button
+        # Download as CSV
         csv = df.to_csv().encode("utf-8")
         st.download_button(
-            label="⬇️ Download CSV",
+            "📥 Download Data as CSV",
             data=csv,
-            file_name=f"air_compressor_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
-            mime="text/csv"
+            file_name="air_compressor_data.csv",
+            mime="text/csv",
         )
+    else:
+        st.warning("No data available yet.")
 
-# ---------------- Reports Tab ----------------
-with tab_reports:
-    st.header("Reports & Insights 📈")
-    st.info("This section can include monthly averages, anomaly detection, or custom KPIs.")
+# ================= REPORTS =================
+with tab3:
+    df = get_sensor_data()
+    st.subheader("Summary Reports")
+
+    if not df.empty:
+        col1, col2, col3, col4 = st.columns(4)
+
+        with col1:
+            st.metric("Avg Temp (°C)", f"{df['temperature'].mean():.2f}")
+        with col2:
+            st.metric("Avg Humidity (%)", f"{df['humidity'].mean():.2f}")
+        with col3:
+            st.metric("Avg Pressure (bar)", f"{df['pressure'].mean():.2f}")
+        with col4:
+            st.metric("Avg Vibration", f"{df['vibration'].mean():.4f}")
+
+        st.subheader("Trend Overview")
+        st.area_chart(df[["temperature", "pressure", "vibration"]], use_container_width=True)
+    else:
+        st.warning("No data available to generate reports.")
