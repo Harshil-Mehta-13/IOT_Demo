@@ -103,13 +103,13 @@ while True:
                         <div style="
                             background-color: #262730;
                             border-radius: 10px;
-                            padding: 10px;
+                            padding: 5px;
                             text-align: center;
                             box-shadow: 0 4px 8px rgba(0,0,0,0.1);
                         ">
-                            <p style="font-size: 1.1em; font-weight: bold; color: #a4a4a4;">🌡️ Temp (°C)</p>
-                            <p style="font-size: 1.5em; font-weight: bold; color: {get_status_color(latest['temperature'], 'temperature')};">{latest['temperature']:.2f}</p>
-                            <p style="color: #666; font-size: 0.9em;">Status: {get_status_text(latest['temperature'], 'temperature')}</p>
+                            <p style="font-size: 1em; font-weight: bold; color: #a4a4a4;">🌡️ Temp (°C)</p>
+                            <p style="font-size: 1.2em; font-weight: bold; color: {get_status_color(latest['temperature'], 'temperature')};">{latest['temperature']:.2f}</p>
+                            <p style="color: #666; font-size: 0.8em;">Status: {get_status_text(latest['temperature'], 'temperature')}</p>
                         </div>
                     """, unsafe_allow_html=True)
                     
@@ -118,13 +118,13 @@ while True:
                         <div style="
                             background-color: #262730;
                             border-radius: 10px;
-                            padding: 10px;
+                            padding: 5px;
                             text-align: center;
                             box-shadow: 0 4px 8px rgba(0,0,0,0.1);
                         ">
-                            <p style="font-size: 1.1em; font-weight: bold; color: #a4a4a4;">PSI Pressure (bar)</p>
-                            <p style="font-size: 1.5em; font-weight: bold; color: {get_status_color(latest['pressure'], 'pressure')};">{latest['pressure']:.2f}</p>
-                            <p style="color: #666; font-size: 0.9em;">Status: {get_status_text(latest['pressure'], 'pressure')}</p>
+                            <p style="font-size: 1em; font-weight: bold; color: #a4a4a4;">PSI Pressure (bar)</p>
+                            <p style="font-size: 1.2em; font-weight: bold; color: {get_status_color(latest['pressure'], 'pressure')};">{latest['pressure']:.2f}</p>
+                            <p style="color: #666; font-size: 0.8em;">Status: {get_status_text(latest['pressure'], 'pressure')}</p>
                         </div>
                     """, unsafe_allow_html=True)
                 
@@ -133,13 +133,13 @@ while True:
                         <div style="
                             background-color: #262730;
                             border-radius: 10px;
-                            padding: 10px;
+                            padding: 5px;
                             text-align: center;
                             box-shadow: 0 4px 8px rgba(0,0,0,0.1);
                         ">
-                            <p style="font-size: 1.1em; font-weight: bold; color: #a4a4a4;">📳 Vibration</p>
-                            <p style="font-size: 1.5em; font-weight: bold; color: {get_status_color(latest['vibration'], 'vibration')};">{latest['vibration']:.2f}</p>
-                            <p style="color: #666; font-size: 0.9em;">Status: {get_status_text(latest['vibration'], 'vibration')}</p>
+                            <p style="font-size: 1em; font-weight: bold; color: #a4a4a4;">📳 Vibration</p>
+                            <p style="font-size: 1.2em; font-weight: bold; color: {get_status_color(latest['vibration'], 'vibration')};">{latest['vibration']:.2f}</p>
+                            <p style="color: #666; font-size: 0.8em;">Status: {get_status_text(latest['vibration'], 'vibration')}</p>
                         </div>
                     """, unsafe_allow_html=True)
 
