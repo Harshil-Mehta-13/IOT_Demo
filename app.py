@@ -104,13 +104,13 @@ while True:
                         <div style="
                             background-color: #262730;
                             border-radius: 10px;
-                            padding: 20px;
+                            padding: 10px;
                             text-align: center;
                             box-shadow: 0 4px 8px rgba(0,0,0,0.1);
                         ">
-                            <p style="font-size: 1.2em; font-weight: bold; color: #a4a4a4;">🌡️ Temperature (°C)</p>
-                            <p style="font-size: 2.5em; font-weight: bold; color: {get_status_color(latest['temperature'], 'temperature')};">{latest['temperature']:.2f}</p>
-                            <p style="color: #666; font-size: 1em;">Status: {get_status_text(latest['temperature'], 'temperature')}</p>
+                            <p style="font-size: 1.1em; font-weight: bold; color: #a4a4a4;">🌡️ Temp (°C)</p>
+                            <p style="font-size: 2em; font-weight: bold; color: {get_status_color(latest['temperature'], 'temperature')};">{latest['temperature']:.2f}</p>
+                            <p style="color: #666; font-size: 0.9em;">Status: {get_status_text(latest['temperature'], 'temperature')}</p>
                         </div>
                     """, unsafe_allow_html=True)
                     
@@ -119,13 +119,13 @@ while True:
                         <div style="
                             background-color: #262730;
                             border-radius: 10px;
-                            padding: 20px;
+                            padding: 10px;
                             text-align: center;
                             box-shadow: 0 4px 8px rgba(0,0,0,0.1);
                         ">
-                            <p style="font-size: 1.2em; font-weight: bold; color: #a4a4a4;">PSI Pressure (bar)</p>
-                            <p style="font-size: 2.5em; font-weight: bold; color: {get_status_color(latest['pressure'], 'pressure')};">{latest['pressure']:.2f}</p>
-                            <p style="color: #666; font-size: 1em;">Status: {get_status_text(latest['pressure'], 'pressure')}</p>
+                            <p style="font-size: 1.1em; font-weight: bold; color: #a4a4a4;">PSI Pressure (bar)</p>
+                            <p style="font-size: 2em; font-weight: bold; color: {get_status_color(latest['pressure'], 'pressure')};">{latest['pressure']:.2f}</p>
+                            <p style="color: #666; font-size: 0.9em;">Status: {get_status_text(latest['pressure'], 'pressure')}</p>
                         </div>
                     """, unsafe_allow_html=True)
                 
@@ -134,30 +134,30 @@ while True:
                         <div style="
                             background-color: #262730;
                             border-radius: 10px;
-                            padding: 20px;
+                            padding: 10px;
                             text-align: center;
                             box-shadow: 0 4px 8px rgba(0,0,0,0.1);
                         ">
-                            <p style="font-size: 1.2em; font-weight: bold; color: #a4a4a4;">📳 Vibration</p>
-                            <p style="font-size: 2.5em; font-weight: bold; color: {get_status_color(latest['vibration'], 'vibration')};">{latest['vibration']:.2f}</p>
-                            <p style="color: #666; font-size: 1em;">Status: {get_status_text(latest['vibration'], 'vibration')}</p>
+                            <p style="font-size: 1.1em; font-weight: bold; color: #a4a4a4;">📳 Vibration</p>
+                            <p style="font-size: 2em; font-weight: bold; color: {get_status_color(latest['vibration'], 'vibration')};">{latest['vibration']:.2f}</p>
+                            <p style="color: #666; font-size: 0.9em;">Status: {get_status_text(latest['vibration'], 'vibration')}</p>
                         </div>
                     """, unsafe_allow_html=True)
 
                 st.markdown("---")
                 
-                # --- Charts in a 2-column layout to prevent scrolling ---
+                # --- Charts in a 3-column layout to prevent scrolling ---
                 st.subheader("Historical Trends")
                 
-                chart_col1, chart_col2 = st.columns(2)
-                
+                chart_col1, chart_col2, chart_col3 = st.columns(3)
+
                 with chart_col1:
                     st.markdown("##### Temperature Trend")
                     fig_temp = go.Figure()
                     fig_temp.add_trace(go.Scatter(x=df.index, y=df['temperature'], mode='lines', name='Temperature'))
-                    fig_temp.add_hline(y=60, line_dash="dash", line_color="orange", annotation_text="Warning")
+                    fig_temp.add_hline(y=60, line_dash="dasah", line_color="orange", annotation_text="Warning")
                     fig_temp.add_hline(y=80, line_dash="dash", line_color="red", annotation_text="Critical")
-                    fig_temp.update_layout(height=350, margin={"l": 0, "r": 0, "t": 30, "b": 0})
+                    fig_temp.update_layout(height=250, margin={"l": 0, "r": 0, "t": 30, "b": 0})
                     st.plotly_chart(fig_temp, use_container_width=True, key=f"temp_chart_{time.time()}")
     
                 with chart_col2:
@@ -166,18 +166,16 @@ while True:
                     fig_pressure.add_trace(go.Scatter(x=df.index, y=df['pressure'], mode='lines', name='Pressure', line_color='#88d8b0'))
                     fig_pressure.add_hline(y=9, line_dash="dash", line_color="orange", annotation_text="Warning")
                     fig_pressure.add_hline(y=12, line_dash="dash", line_color="red", annotation_text="Critical")
-                    fig_pressure.update_layout(height=350, margin={"l": 0, "r": 0, "t": 30, "b": 0})
+                    fig_pressure.update_layout(height=250, margin={"l": 0, "r": 0, "t": 30, "b": 0})
                     st.plotly_chart(fig_pressure, use_container_width=True, key=f"pressure_chart_{time.time()}")
-                
-                chart_col3, chart_spacer = st.columns([1, 1])
-
+    
                 with chart_col3:
                     st.markdown("##### Vibration Trend")
                     fig_vibration = go.Figure()
                     fig_vibration.add_trace(go.Scatter(x=df.index, y=df['vibration'], mode='lines', name='Vibration', line_color='#6a5acd'))
                     fig_vibration.add_hline(y=3, line_dash="dash", line_color="orange", annotation_text="Warning")
                     fig_vibration.add_hline(y=5, line_dash="dash", line_color="red", annotation_text="Critical")
-                    fig_vibration.update_layout(height=350, margin={"l": 0, "r": 0, "t": 30, "b": 0})
+                    fig_vibration.update_layout(height=250, margin={"l": 0, "r": 0, "t": 30, "b": 0})
                     st.plotly_chart(fig_vibration, use_container_width=True, key=f"vibration_chart_{time.time()}")
             
         with tab2:
