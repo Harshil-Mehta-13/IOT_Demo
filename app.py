@@ -122,7 +122,6 @@ def create_chart(df, param_name, title, color, warn_thresh=None, crit_thresh=Non
 
 # --- Main App Logic ---
 st.title("Air Compressor Monitoring Dashboard ⚙️")
-st.markdown("A real-time dashboard for tracking key operational metrics.")
 
 tab1, tab2, tab3 = st.tabs(["📊 Live Dashboard", "📅 Historical Analysis", "📂 Database"])
 
