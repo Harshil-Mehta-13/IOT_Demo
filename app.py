@@ -98,7 +98,6 @@ def create_chart(df, param_name, title, color, warn_thresh=None, crit_thresh=Non
 
 # --- Main App Logic ---
 st.title("Air Compressor Monitoring Dashboard ⚙️")
-st.markdown("A real-time dashboard for tracking key operational metrics.")
 
 with st.sidebar:
     st.header("Navigation")
@@ -128,7 +127,7 @@ if app_mode == "Live Dashboard":
 
                 st.markdown("---")
                 
-                st.subheader("Historical Trends (Last 100 Entries)")
+                st.subheader("Critical Parameter Trends")
                 
                 chart_col1, chart_col2, chart_col3 = st.columns([0.75, 0.75, 0.75])
 
