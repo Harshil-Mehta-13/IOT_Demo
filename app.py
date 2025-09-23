@@ -42,19 +42,24 @@ def get_sensor_data():
         st.error(f"Error fetching data: {e}")
         return pd.DataFrame()
 
-# --- Tabs ---
-tab1, tab2 = st.tabs(["📊 Dashboard", "📂 Database"])
+# --- Main App Logic ---
+# Use a placeholder for the live-updating content
+dashboard_container = st.empty()
 
-# ============================================================
-# TAB 1: DASHBOARD
-# ============================================================
-with tab1:
-    st.markdown("## Air Compressor Monitoring ⚙️")
-    dashboard_container = st.empty()
+# The infinite loop that drives the live updates
+while True:
+    # Fetch the data once at the start of the loop
+    df = get_sensor_data()
 
-    while True:
-        with dashboard_container.container():
-            df = get_sensor_data()
+    with dashboard_container.container():
+        # --- Tabs ---
+        tab1, tab2 = st.tabs(["📊 Dashboard", "📂 Database"])
+
+        # ============================================================
+        # TAB 1: DASHBOARD
+        # ============================================================
+        with tab1:
+            st.markdown("## Air Compressor Monitoring ⚙️")
 
             if df.empty:
                 st.warning("No data available. Waiting for ESP32 to push...")
@@ -104,27 +109,26 @@ with tab1:
                     f"Pressure: **{avg_pressure:.2f} bar**, "
                     f"Vibration: **{avg_vibration:.2f}**"
                 )
-        
-        time.sleep(5)
 
+        # ============================================================
+        # TAB 2: DATABASE
+        # ============================================================
+        with tab2:
+            st.markdown("## Database Viewer")
+            if df.empty:
+                st.warning("No records in database.")
+            else:
+                st.dataframe(df, use_container_width=True, height=500)
 
-# ============================================================
-# TAB 2: DATABASE
-# ============================================================
-with tab2:
-    st.markdown("## Database Viewer")
-    df_viewer = get_sensor_data()
-    if df_viewer.empty:
-        st.warning("No records in database.")
-    else:
-        st.dataframe(df_viewer, use_container_width=True, height=500)
-
-        # CSV Download
-        csv = df_viewer.to_csv().encode("utf-8")
-        st.download_button(
-            "⬇️ Download CSV",
-            csv,
-            "air_compressor_data.csv",
-            "text/csv",
-            key="download-csv"
-        )
+                # CSV Download
+                csv = df.to_csv().encode("utf-8")
+                st.download_button(
+                    "⬇️ Download CSV",
+                    csv,
+                    "air_compressor_data.csv",
+                    "text/csv",
+                    key="download-csv"
+                )
+    
+    # Wait for 5 seconds before fetching new data
+    time.sleep(5)
