@@ -87,9 +87,11 @@ while True:
     df = get_sensor_data()
 
     with dashboard_placeholder.container():
-        tab1, tab2 = st.tabs(["📊 Dashboard", "📂 Database"])
+        # --- Tabs with custom styling ---
+        tab_titles = ["📊 Dashboard", "📂 Database"]
+        selected_tab = st.radio("Select Tab", options=tab_titles, horizontal=True)
 
-        with tab1:
+        if selected_tab == "📊 Dashboard":
             if df.empty:
                 st.warning("No data available. Please check your ESP32 connection.")
             else:
@@ -179,7 +181,7 @@ while True:
                     fig_vibration.update_layout(height=350, margin={"l": 10, "r": 10, "t": 30, "b": 0})
                     st.plotly_chart(fig_vibration, use_container_width=True, key=f"vibration_chart_{time.time()}")
             
-        with tab2:
+        elif selected_tab == "📂 Database":
             st.subheader("Raw Database Data")
             if df.empty:
                 st.warning("No records in database.")
