@@ -23,6 +23,7 @@ def init_connection():
 supabase_client = init_connection()
 
 # --- Helper Functions for Data Fetching and Styling ---
+@st.cache_data(ttl=5)
 def get_live_data():
     try:
         response = (
@@ -98,6 +99,7 @@ def create_chart(df, param_name, title, color, warn_thresh=None, crit_thresh=Non
 
 # --- Main App Logic ---
 st.title("Air Compressor Monitoring Dashboard ⚙️")
+st.markdown("A real-time dashboard for tracking key operational metrics.")
 
 with st.sidebar:
     st.header("Navigation")
