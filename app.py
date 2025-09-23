@@ -79,7 +79,6 @@ def get_status_text(value, param_name):
 
 # --- Main App Logic ---
 st.title("Air Compressor Monitoring Dashboard ⚙️")
-st.markdown("A real-time dashboard for tracking key operational metrics.")
 
 dashboard_placeholder = st.empty()
 
@@ -95,27 +94,60 @@ while True:
             else:
                 latest = df.iloc[-1]
                 
-                # --- KPI Cards with spacing ---
-                kpi_col1, kpi_col2, kpi_col3 = st.columns([1,1,1])
+                # --- KPI Cards ---
+                kpi_col1, kpi_col2, kpi_col3 = st.columns(3)
 
                 with kpi_col1:
-                    st.metric(label="🌡️ Temp (°C)", value=f"{latest['temperature']:.2f}")
-                    st.markdown(f"**Status:** <span style='color: {get_status_color(latest['temperature'], 'temperature')};'>{get_status_text(latest['temperature'], 'temperature')}</span>", unsafe_allow_html=True)
+                    st.markdown(f"""
+                        <div style="
+                            background-color: #262730;
+                            border-radius: 10px;
+                            padding: 10px;
+                            text-align: center;
+                            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+                        ">
+                            <p style="font-size: 1.1em; font-weight: bold; color: #a4a4a4;">🌡️ Temp (°C)</p>
+                            <p style="font-size: 1.5em; font-weight: bold; color: {get_status_color(latest['temperature'], 'temperature')};">{latest['temperature']:.2f}</p>
+                            <p style="color: #666; font-size: 0.8em;">Status: {get_status_text(latest['temperature'], 'temperature')}</p>
+                        </div>
+                    """, unsafe_allow_html=True)
                     
                 with kpi_col2:
-                    st.metric(label="PSI Pressure (bar)", value=f"{latest['pressure']:.2f}")
-                    st.markdown(f"**Status:** <span style='color: {get_status_color(latest['pressure'], 'pressure')};'>{get_status_text(latest['pressure'], 'pressure')}</span>", unsafe_allow_html=True)
+                    st.markdown(f"""
+                        <div style="
+                            background-color: #262730;
+                            border-radius: 10px;
+                            padding: 10px;
+                            text-align: center;
+                            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+                        ">
+                            <p style="font-size: 1.1em; font-weight: bold; color: #a4a4a4;">PSI Pressure (bar)</p>
+                            <p style="font-size: 1.5em; font-weight: bold; color: {get_status_color(latest['pressure'], 'pressure')};">{latest['pressure']:.2f}</p>
+                            <p style="color: #666; font-size: 0.8em;">Status: {get_status_text(latest['pressure'], 'pressure')}</p>
+                        </div>
+                    """, unsafe_allow_html=True)
                 
                 with kpi_col3:
-                    st.metric(label="📳 Vibration", value=f"{latest['vibration']:.2f}")
-                    st.markdown(f"**Status:** <span style='color: {get_status_color(latest['vibration'], 'vibration')};'>{get_status_text(latest['vibration'], 'vibration')}</span>", unsafe_allow_html=True)
+                    st.markdown(f"""
+                        <div style="
+                            background-color: #262730;
+                            border-radius: 10px;
+                            padding: 10px;
+                            text-align: center;
+                            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+                        ">
+                            <p style="font-size: 1.1em; font-weight: bold; color: #a4a4a4;">📳 Vibration</p>
+                            <p style="font-size: 1.5em; font-weight: bold; color: {get_status_color(latest['vibration'], 'vibration')};">{latest['vibration']:.2f}</p>
+                            <p style="color: #666; font-size: 0.8em;">Status: {get_status_text(latest['vibration'], 'vibration')}</p>
+                        </div>
+                    """, unsafe_allow_html=True)
 
                 st.markdown("---")
                 
                 # --- Charts in a 3-column layout to prevent scrolling ---
                 st.subheader("Historical Trends")
                 
-                chart_col1, chart_col2, chart_col3 = st.columns([1, 1, 1])
+                chart_col1, chart_col2, chart_col3 = st.columns(3)
 
                 with chart_col1:
                     st.markdown("##### Temperature Trend")
