@@ -121,6 +121,7 @@ def create_chart(df, param_name, title, color, warn_thresh=None, crit_thresh=Non
 
 # --- Main App Logic ---
 st.title("Air Compressor Monitoring Dashboard ⚙️")
+st.markdown("A real-time dashboard for tracking key operational metrics.")
 
 # Define tabs outside the main rendering loop
 tab1, tab2, tab3 = st.tabs(["📊 Live Dashboard", "📅 Historical Analysis", "📂 Database"])
@@ -198,6 +199,7 @@ with tab2:
     now_utc = datetime.now(pytz.utc)
     start_time_utc = now_utc - timedelta(minutes=intervals[selected_interval])
     
+    # This data fetching is not cached, so it runs on each user selection
     historical_df = get_historical_data(start_time_utc)
     
     if historical_df.empty:
