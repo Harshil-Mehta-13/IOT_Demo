@@ -157,7 +157,7 @@ while True:
                 
                 st.subheader("Historical Trends (Last 100 Entries)")
                 
-                chart_col1, chart_col2, chart_col3 = st.columns(0.75,.75,0.75)
+                chart_col1, chart_col2, chart_col3 = st.columns(3)
 
                 with chart_col1:
                     st.markdown("##### Temperature Trend")
