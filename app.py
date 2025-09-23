@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import time
 from supabase import create_client, Client
 
 # --- Page Config ---
@@ -9,9 +8,6 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
-
-# --- Auto Refresh every 5s ---
-st_autorefresh(interval=5000, key="data_refresh")
 
 # --- Supabase Connection ---
 @st.cache_resource(ttl="30s")
@@ -110,15 +106,14 @@ with tab1:
 # ============================================================
 with tab2:
     st.markdown("## Database Viewer")
-    df = get_sensor_data()
-
-    if df.empty:
+    df_viewer = get_sensor_data()
+    if df_viewer.empty:
         st.warning("No records in database.")
     else:
-        st.dataframe(df, use_container_width=True, height=500)
+        st.dataframe(df_viewer, use_container_width=True, height=500)
 
         # CSV Download
-        csv = df.to_csv().encode("utf-8")
+        csv = df_viewer.to_csv().encode("utf-8")
         st.download_button(
             "⬇️ Download CSV",
             csv,
@@ -127,3 +122,9 @@ with tab2:
             key="download-csv"
         )
 
+# ============================================================
+# AUTO REFRESH
+# ============================================================
+import time
+time.sleep(5)
+st.rerun()
