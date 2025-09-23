@@ -188,16 +188,17 @@ while True:
                 "1 month": 43200
             }
             
+            # Make keys dynamic inside the loop
             selected_interval = st.selectbox(
                 "Select Time Frame:",
                 list(intervals.keys()),
-                key='time_interval_selectbox'
+                key=f'time_interval_selectbox_{time.time()}'
             )
             
             selected_param = st.selectbox(
                 "Select Parameter:",
                 ['temperature', 'pressure', 'vibration'],
-                key='historical_param_selectbox'
+                key=f'historical_param_selectbox_{time.time()}'
             )
             
             # Fetch data based on the selected interval
@@ -222,7 +223,7 @@ while True:
                     crit_thresh=80 if selected_param == 'temperature' else 12 if selected_param == 'pressure' else 5,
                     height=450
                 )
-                st.plotly_chart(fig_historical, use_container_width=True, key='historical_chart')
+                st.plotly_chart(fig_historical, use_container_width=True, key=f'historical_chart_{time.time()}')
                 
                 st.markdown("---")
                 
@@ -237,7 +238,7 @@ while True:
                     csv,
                     f"{selected_param}_data_{selected_interval}.csv",
                     "text/csv",
-                    key='historical_download'
+                    key=f'historical_download_{time.time()}'
                 )
 
         # ============================================================
