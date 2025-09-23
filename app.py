@@ -103,7 +103,7 @@ with st.sidebar:
     st.header("Navigation")
     app_mode = st.radio("Choose a page", ["Dashboard", "Database"])
 
-if app_mode == "Live Dashboard":
+if app_mode == "Dashboard":
     live_placeholder = st.empty()
     while True:
         live_df = get_live_data()
