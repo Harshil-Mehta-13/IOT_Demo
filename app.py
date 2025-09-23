@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from supabase import create_client
 from datetime import datetime
+from streamlit_autorefresh import st_autorefresh
 
 # --- Page Configuration ---
 st.set_page_config(
@@ -9,6 +10,9 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+# --- Auto Refresh every 5s ---
+st_autorefresh(interval=5000, key="data_refresh")
 
 # --- Supabase Connection ---
 @st.cache_resource(ttl="30s")
