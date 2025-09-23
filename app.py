@@ -221,7 +221,6 @@ with tab2:
         st.markdown("---")
         
         st.subheader("Historical Data Table")
-        # Filter the DataFrame to include only the selected parameter
         filtered_df = historical_df[[selected_param]]
         st.dataframe(filtered_df, use_container_width=True)
         
