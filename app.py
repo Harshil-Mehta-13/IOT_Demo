@@ -152,16 +152,16 @@ if app_mode == "Live Dashboard":
         chart_col1, chart_col2, chart_col3 = st.columns([0.75, 0.75, 0.75])
 
         with chart_col1:
-            
-            fig_temp = create_chart(live_df, 'temperature', 'Temperature Trend', '#00BFFF', 60, 80, height=350)
+            st.markdown("##### Temperature Trend")
+            fig_temp = create_chart(live_df, 'temperature', pass, '#00BFFF', 60, 80, height=350)
             st.plotly_chart(fig_temp, use_container_width=True)
         with chart_col2:
-    
-            fig_pressure = create_chart(live_df, 'pressure', 'Pressure Trend', '#88d8b0', 9, 12, height=350)
+            st.markdown("##### Pressure Trend")
+            fig_pressure = create_chart(live_df, 'pressure', pass, '#88d8b0', 9, 12, height=350)
             st.plotly_chart(fig_pressure, use_container_width=True)
         with chart_col3:
-            
-            fig_vibration = create_chart(live_df, 'vibration', 'Vibration Trend', '#6a5acd', 3, 5, height=350)
+            st.markdown("##### Vibration Trend")
+            fig_vibration = create_chart(live_df, 'vibration', pass, '#6a5acd', 3, 5, height=350)
             st.plotly_chart(fig_vibration, use_container_width=True)
             
     # Auto-refresh logic for the live dashboard
