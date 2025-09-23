@@ -121,6 +121,7 @@ def create_chart(df, param_name, title, color, warn_thresh=None, crit_thresh=Non
 
 # --- Main App Logic ---
 st.title("Air Compressor Monitoring Dashboard ⚙️")
+st.markdown("A real-time dashboard for tracking key operational metrics.")
 
 with st.sidebar:
     st.header("Navigation")
@@ -172,13 +173,15 @@ if app_mode == "Live Dashboard":
 elif app_mode == "Database":
     st.subheader("Raw Database Data")
     
-    # Date filters
-    start_date = st.date_input("Start Date", value=datetime.now().date() - timedelta(days=7))
-    end_date = st.date_input("End Date", value=datetime.now().date())
-    
-    # Parameter filter
-    parameters = ['temperature', 'pressure', 'vibration']
-    selected_param = st.selectbox("Select Parameter to Filter:", options=['All'] + parameters)
+    # Filters in a single row
+    col_start, col_end, col_param = st.columns(3)
+    with col_start:
+        start_date = st.date_input("Start Date", value=datetime.now().date() - timedelta(days=7))
+    with col_end:
+        end_date = st.date_input("End Date", value=datetime.now().date())
+    with col_param:
+        parameters = ['temperature', 'pressure', 'vibration']
+        selected_param = st.selectbox("Select Parameter to Filter:", options=['All'] + parameters)
     
     # Query data within the selected date range
     start_dt = datetime.combine(start_date, datetime.min.time())
