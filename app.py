@@ -23,7 +23,6 @@ def init_connection():
 supabase_client = init_connection()
 
 # --- Helper Functions for Data Fetching and Styling ---
-@st.cache_data(ttl=5)
 def get_live_data():
     try:
         response = (
@@ -45,6 +44,28 @@ def get_live_data():
         return df
     except Exception as e:
         st.error(f"Error fetching data: {e}")
+        return pd.DataFrame()
+
+def get_historical_data(start_time):
+    try:
+        response = (
+            supabase_client.table("air_compressor")
+            .select("*")
+            .gte("timestamp", start_time.isoformat())
+            .order("timestamp", desc=True)
+            .execute()
+        )
+        data = response.data
+        if not data:
+            return pd.DataFrame()
+        
+        df = pd.DataFrame(data)
+        ist = pytz.timezone('Asia/Kolkata')
+        df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.tz_convert(ist)
+        df = df.set_index("timestamp").sort_index()
+        return df
+    except Exception as e:
+        st.error(f"Error fetching historical data: {e}")
         return pd.DataFrame()
 
 def get_status_color(value, param_name):
@@ -99,6 +120,7 @@ def create_chart(df, param_name, title, color, warn_thresh=None, crit_thresh=Non
 
 # --- Main App Logic ---
 st.title("Air Compressor Monitoring Dashboard ⚙️")
+st.markdown("A real-time dashboard for tracking key operational metrics.")
 
 with st.sidebar:
     st.header("Navigation")
