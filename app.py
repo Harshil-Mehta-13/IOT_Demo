@@ -136,32 +136,37 @@ if app_mode == "Live Dashboard":
             else:
                 latest = live_df.iloc[-1]
                 
-                main_col1, main_col2 = st.columns([1, 3])
+                kpi_col1, kpi_col2, kpi_col3 = st.columns(3)
 
-                with main_col1:
-                    st.subheader("Latest Readings & Status")
-                    
+                with kpi_col1:
                     st.metric(label="🌡️ Temp (°C)", value=f"{latest['temperature']:.2f}")
                     st.markdown(f"**Status:** <span style='color: {get_status_color(latest['temperature'], 'temperature')};'>{get_status_text(latest['temperature'], 'temperature')}</span>", unsafe_allow_html=True)
-                    st.markdown("---")
-                    
+                with kpi_col2:
                     st.metric(label="PSI Pressure (bar)", value=f"{latest['pressure']:.2f}")
                     st.markdown(f"**Status:** <span style='color: {get_status_color(latest['pressure'], 'pressure')};'>{get_status_text(latest['pressure'], 'pressure')}</span>", unsafe_allow_html=True)
-                    st.markdown("---")
-                    
+                with kpi_col3:
                     st.metric(label="📳 Vibration", value=f"{latest['vibration']:.2f}")
                     st.markdown(f"**Status:** <span style='color: {get_status_color(latest['vibration'], 'vibration')};'>{get_status_text(latest['vibration'], 'vibration')}</span>", unsafe_allow_html=True)
 
-                with main_col2:
-                    st.subheader("Historical Trends (Last 100 Entries)")
-                    
-                    fig_temp = create_chart(live_df, 'temperature', 'Temperature Trend', '#00BFFF', 60, 80, height=300)
+                st.markdown("---")
+                
+                st.subheader("Historical Trends (Last 100 Entries)")
+                
+                chart_col1, chart_col2, chart_col3 = st.columns(3)
+                
+                with chart_col1:
+                    st.markdown("##### Temperature Trend")
+                    fig_temp = create_chart(live_df, 'temperature', '', '#00BFFF', 60, 80, height=250)
                     st.plotly_chart(fig_temp, use_container_width=True, key=f"live_temp_{time.time()}")
-                    
-                    fig_pressure = create_chart(live_df, 'pressure', 'Pressure Trend', '#88d8b0', 9, 12, height=300)
+                
+                with chart_col2:
+                    st.markdown("##### Pressure Trend")
+                    fig_pressure = create_chart(live_df, 'pressure', '', '#88d8b0', 9, 12, height=250)
                     st.plotly_chart(fig_pressure, use_container_width=True, key=f"live_pressure_{time.time()}")
-                    
-                    fig_vibration = create_chart(live_df, 'vibration', 'Vibration Trend', '#6a5acd', 3, 5, height=300)
+                
+                with chart_col3:
+                    st.markdown("##### Vibration Trend")
+                    fig_vibration = create_chart(live_df, 'vibration', '', '#6a5acd', 3, 5, height=250)
                     st.plotly_chart(fig_vibration, use_container_width=True, key=f"live_vibration_{time.time()}")
         
         time.sleep(5)
