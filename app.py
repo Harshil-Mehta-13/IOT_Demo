@@ -176,6 +176,10 @@ elif app_mode == "Database":
     start_date = st.date_input("Start Date", value=datetime.now().date() - timedelta(days=7))
     end_date = st.date_input("End Date", value=datetime.now().date())
     
+    # Parameter filter
+    parameters = ['temperature', 'pressure', 'vibration']
+    selected_param = st.selectbox("Select Parameter to Filter:", options=['All'] + parameters)
+    
     # Query data within the selected date range
     start_dt = datetime.combine(start_date, datetime.min.time())
     end_dt = datetime.combine(end_date, datetime.max.time())
@@ -192,6 +196,11 @@ elif app_mode == "Database":
         if filtered_df.empty:
             st.warning("No records found for the selected date range.")
         else:
+            # Filter by parameter
+            if selected_param != 'All':
+                # Preserve timestamp and the selected parameter
+                filtered_df = filtered_df[['timestamp', selected_param]]
+
             # Display filtered data
             st.dataframe(filtered_df, use_container_width=True, height=500)
             
