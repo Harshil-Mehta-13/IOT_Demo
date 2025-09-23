@@ -96,11 +96,10 @@ while True:
                 latest = df.iloc[-1]
                 
                 # --- KPI Cards with spacing ---
-                st.subheader("Latest Readings & Status")
-                kpi_col1, kpi_col2, kpi_col3 = st.columns(3)
+                kpi_col1, kpi_col2, kpi_col3 = st.columns([1,1,1])
 
                 with kpi_col1:
-                    st.metric(label="🌡️ Temperature (°C)", value=f"{latest['temperature']:.2f}")
+                    st.metric(label="🌡️ Temp (°C)", value=f"{latest['temperature']:.2f}")
                     st.markdown(f"**Status:** <span style='color: {get_status_color(latest['temperature'], 'temperature')};'>{get_status_text(latest['temperature'], 'temperature')}</span>", unsafe_allow_html=True)
                     
                 with kpi_col2:
@@ -116,7 +115,7 @@ while True:
                 # --- Charts in a 3-column layout to prevent scrolling ---
                 st.subheader("Historical Trends")
                 
-                chart_col1, chart_col2, chart_col3 = st.columns(3)
+                chart_col1, chart_col2, chart_col3 = st.columns([1, 1, 1])
 
                 with chart_col1:
                     st.markdown("##### Temperature Trend")
