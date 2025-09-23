@@ -54,10 +54,15 @@ def get_status_color(value, param_name):
         if value > 12: return "#ff4b4b"
         elif value > 9: return "#ffcc00"
         else: return "#2ec27e"
-    elif param_name == 'vibration':
-        if value > 5: return "#ff4b4b"
-        elif value > 3: return "#ffcc00"
-        else: return "#2ec27e"
+    elif value > 5:
+        if param_name == 'vibration':
+            return "#ff4b4b"
+    elif value > 3:
+        if param_name == 'vibration':
+            return "#ffcc00"
+    else:
+        if param_name == 'vibration':
+            return "#2ec27e"
     return "#2ec27e"
 
 def get_status_text(value, param_name):
@@ -76,6 +81,12 @@ def get_status_text(value, param_name):
     return "Normal"
 
 # --- Main App Logic ---
+st.set_page_config(
+    page_title="Air Compressor Dashboard",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
 st.title("Air Compressor Monitoring Dashboard ⚙️")
 st.markdown("A real-time dashboard for tracking key operational metrics.")
 
@@ -125,12 +136,43 @@ while True:
             
             with chart_col:
                 st.subheader("Historical Trends")
+                # Temperature Chart
+                fig_temp = go.Figure()
+                fig_temp.add_trace(go.Scatter(x=df.index, y=df['temperature'], mode='lines', name='Temperature'))
+                fig_temp.add_hline(y=60, line_dash="dash", line_color="orange", annotation_text="Warning")
+                fig_temp.add_hline(y=80, line_dash="dash", line_color="red", annotation_text="Critical")
+                fig_temp.update_layout(height=250, margin={"l": 0, "r": 0, "t": 30, "b": 0})
+                st.plotly_chart(fig_temp, use_container_width=True, key=f"temp_chart_{time.time()}")
+
+                # Pressure Chart
+                fig_pressure = go.Figure()
+                fig_pressure.add_trace(go.Scatter(x=df.index, y=df['pressure'], mode='lines', name='Pressure', line_color='#88d8b0'))
+                fig_pressure.add_hline(y=9, line_dash="dash", line_color="orange", annotation_text="Warning")
+                fig_pressure.add_hline(y=12, line_dash="dash", line_color="red", annotation_text="Critical")
+                fig_pressure.update_layout(height=250, margin={"l": 0, "r": 0, "t": 30, "b": 0})
+                st.plotly_chart(fig_pressure, use_container_width=True, key=f"pressure_chart_{time.time()}")
+
+                # Vibration Chart
+                fig_vibration = go.Figure()
+                fig_vibration.add_trace(go.Scatter(x=df.index, y=df['vibration'], mode='lines', name='Vibration', line_color='#6a5acd'))
+                fig_vibration.add_hline(y=3, line_dash="dash", line_color="orange", annotation_text="Warning")
+                fig_vibration.add_hline(y=5, line_dash="dash", line_color="red", annotation_text="Critical")
+                fig_vibration.update_layout(height=250, margin={"l": 0, "r": 0, "t": 30, "b": 0})
+                st.plotly_chart(fig_vibration, use_container_width=True, key=f"vibration_chart_{time.time()}")
+            
+            # --- Database Viewer as Expander ---
+            st.markdown("---")
+            with st.expander("📂 View Raw Database Data"):
+                st.subheader("Raw Database Data")
+                st.dataframe(df, use_container_width=True, height=500)
                 
-                # Three charts in a 3-column layout to prevent scrolling
-                chart_col1, chart_col2, chart_col3 = st.columns(3)
-                
-                with chart_col1:
-                    st.markdown("##### Temperature")
-                    fig_temp = go.Figure()
-                    fig_temp.add_trace(go.Scatter(x=df.index, y=df['temperature'], mode='lines', name='Temperature'))
-                    fig_temp.add_hline(y=60, line
+                csv = df.to_csv().encode('utf-8')
+                st.download_button(
+                    "⬇️ Download CSV",
+                    csv,
+                    "air_compressor_data.csv",
+                    "text/csv",
+                    key='download-csv'
+                )
+    
+    time.sleep(5)
