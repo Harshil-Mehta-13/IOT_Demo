@@ -136,13 +136,11 @@ if app_mode == "Live Dashboard":
             else:
                 latest = live_df.iloc[-1]
                 
-                # --- Two Column Layout ---
                 main_col1, main_col2 = st.columns([1, 3])
 
                 with main_col1:
                     st.subheader("Latest Readings & Status")
                     
-                    # KPIs stacked vertically
                     st.metric(label="🌡️ Temp (°C)", value=f"{latest['temperature']:.2f}")
                     st.markdown(f"**Status:** <span style='color: {get_status_color(latest['temperature'], 'temperature')};'>{get_status_text(latest['temperature'], 'temperature')}</span>", unsafe_allow_html=True)
                     st.markdown("---")
@@ -153,25 +151,18 @@ if app_mode == "Live Dashboard":
                     
                     st.metric(label="📳 Vibration", value=f"{latest['vibration']:.2f}")
                     st.markdown(f"**Status:** <span style='color: {get_status_color(latest['vibration'], 'vibration')};'>{get_status_text(latest['vibration'], 'vibration')}</span>", unsafe_allow_html=True)
-                
+
                 with main_col2:
-                    st.subheader("Combined Historical Trends")
+                    st.subheader("Historical Trends (Last 100 Entries)")
                     
-                    fig = go.Figure()
-                    fig.add_trace(go.Scatter(x=live_df.index, y=live_df['temperature'], mode='lines', name='Temperature', line=dict(color='#00BFFF')))
-                    fig.add_trace(go.Scatter(x=live_df.index, y=live_df['pressure'], mode='lines', name='Pressure', line=dict(color='#88d8b0')))
-                    fig.add_trace(go.Scatter(x=live_df.index, y=live_df['vibration'], mode='lines', name='Vibration', line=dict(color='#6a5acd')))
+                    fig_temp = create_chart(live_df, 'temperature', 'Temperature Trend', '#00BFFF', 60, 80, height=300)
+                    st.plotly_chart(fig_temp, use_container_width=True, key=f"live_temp_{time.time()}")
                     
-                    fig.update_layout(
-                        height=500,
-                        margin={"l": 10, "r": 10, "t": 30, "b": 0},
-                        title=dict(text='All Parameters Over Time', font=dict(size=14)),
-                        template="plotly_dark",
-                        xaxis_title='Timestamp',
-                        yaxis_title='Value',
-                        legend_title='Parameter'
-                    )
-                    st.plotly_chart(fig, use_container_width=True, key=f"combined_chart_{time.time()}")
+                    fig_pressure = create_chart(live_df, 'pressure', 'Pressure Trend', '#88d8b0', 9, 12, height=300)
+                    st.plotly_chart(fig_pressure, use_container_width=True, key=f"live_pressure_{time.time()}")
+                    
+                    fig_vibration = create_chart(live_df, 'vibration', 'Vibration Trend', '#6a5acd', 3, 5, height=300)
+                    st.plotly_chart(fig_vibration, use_container_width=True, key=f"live_vibration_{time.time()}")
         
         time.sleep(5)
 
