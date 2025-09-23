@@ -79,7 +79,6 @@ def get_status_text(value, param_name):
 
 # --- Main App Logic ---
 st.title("Air Compressor Monitoring Dashboard ⚙️")
-st.markdown("A real-time dashboard for tracking key operational metrics.")
 
 dashboard_placeholder = st.empty()
 
