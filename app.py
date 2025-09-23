@@ -49,6 +49,7 @@ def get_live_data():
 
 def get_historical_data(start_time):
     try:
+        # Correctly format the start_time to ISO format for Supabase query
         response = (
             supabase_client.table("air_compressor")
             .select("*")
@@ -154,21 +155,21 @@ while True:
 
                 st.markdown("---")
                 
-                st.subheader("Critical Paremeters Trend")
+                st.subheader("Historical Trends (Last 100 Entries)")
                 
                 chart_col1, chart_col2, chart_col3 = st.columns(3)
 
                 with chart_col1:
                     st.markdown("##### Temperature Trend")
-                    fig_temp = create_chart(live_df, 'temperature', 'Temperature Trend', '#00BFFF', 60, 80, height=350)
+                    fig_temp = create_chart(live_df, 'temperature', 'Temperature Trend', '#00BFFF', 60, 80, height=250)
                     st.plotly_chart(fig_temp, use_container_width=True, key=f"live_temp_{time.time()}")
                 with chart_col2:
                     st.markdown("##### Pressure Trend")
-                    fig_pressure = create_chart(live_df, 'pressure', 'Pressure Trend', '#88d8b0', 9, 12, height=350)
+                    fig_pressure = create_chart(live_df, 'pressure', 'Pressure Trend', '#88d8b0', 9, 12, height=250)
                     st.plotly_chart(fig_pressure, use_container_width=True, key=f"live_pressure_{time.time()}")
                 with chart_col3:
                     st.markdown("##### Vibration Trend")
-                    fig_vibration = create_chart(live_df, 'vibration', 'Vibration Trend', '#6a5acd', 3, 5, height=350)
+                    fig_vibration = create_chart(live_df, 'vibration', 'Vibration Trend', '#6a5acd', 3, 5, height=250)
                     st.plotly_chart(fig_vibration, use_container_width=True, key=f"live_vibration_{time.time()}")
         
         # ============================================================
@@ -201,10 +202,11 @@ while True:
                 key=f'historical_param_selectbox_{time.time()}'
             )
             
-            # Fetch data based on the selected interval
-            now_ist = datetime.now(pytz.timezone('Asia/Kolkata'))
-            start_time = now_ist - timedelta(minutes=intervals[selected_interval])
-            historical_df = get_historical_data(start_time)
+            # Get current UTC time and calculate start time for the query
+            now_utc = datetime.now(pytz.utc)
+            start_time_utc = now_utc - timedelta(minutes=intervals[selected_interval])
+            
+            historical_df = get_historical_data(start_time_utc)
             
             if historical_df.empty:
                 st.warning("No data found for the selected time frame.")
@@ -221,7 +223,7 @@ while True:
                     '#ffcc00', 
                     warn_thresh=60 if selected_param == 'temperature' else 9 if selected_param == 'pressure' else 3,
                     crit_thresh=80 if selected_param == 'temperature' else 12 if selected_param == 'pressure' else 5,
-                    height=450
+                    height=250
                 )
                 st.plotly_chart(fig_historical, use_container_width=True, key=f'historical_chart_{time.time()}')
                 
