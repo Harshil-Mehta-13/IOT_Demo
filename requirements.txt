@@ -4,3 +4,4 @@ supabase
 python-dotenv
 requests
 streamlit-autorefresh
+plotly.express
