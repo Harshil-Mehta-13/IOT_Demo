@@ -76,10 +76,15 @@ def get_status_text(value, param_name):
     return "Normal"
 
 # --- Main App Logic ---
+st.set_page_config(
+    page_title="Air Compressor Dashboard",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
 st.title("Air Compressor Monitoring Dashboard ⚙️")
 st.markdown("A real-time dashboard for tracking key operational metrics.")
 
-# Create the main container for live updates
 dashboard_placeholder = st.empty()
 
 while True:
@@ -91,114 +96,65 @@ while True:
         else:
             latest = df.iloc[-1]
             
-            # --- KPI Cards ---
-            st.subheader("Latest Readings & Status")
-            col1, col2, col3 = st.columns(3)
+            # --- Layout: KPI column on the left, charts on the right ---
+            kpi_col, chart_col = st.columns([1, 3])
 
-            with col1:
+            with kpi_col:
+                st.subheader("Latest Readings & Status")
+                
+                # Temperature KPI
                 st.markdown(f"""
-                    <div style="
-                        background-color: #262730; 
-                        border-radius: 10px; 
-                        padding: 20px; 
-                        text-align: center;
-                    ">
-                        <p style="
-                            font-size: 1.2em; 
-                            font-weight: bold; 
-                            color: #a4a4a4;
-                        ">
-                            🌡️ Temperature (°C)
-                        </p>
-                        <p style="
-                            font-size: 2.5em; 
-                            font-weight: bold; 
-                            color: {get_status_color(latest['temperature'], 'temperature')};
-                        ">
-                            {latest['temperature']:.2f}
-                        </p>
-                        <p style="
-                            color: #666; 
-                            font-size: 1em;
-                        ">
-                            Status: {get_status_text(latest['temperature'], 'temperature')}
-                        </p>
+                    <div style="background-color: #262730; border-radius: 10px; padding: 20px; text-align: center; margin-bottom: 10px;">
+                        <p style="font-size: 1.2em; font-weight: bold; color: #a4a4a4;">🌡️ Temperature (°C)</p>
+                        <p style="font-size: 2.5em; font-weight: bold; color: {get_status_color(latest['temperature'], 'temperature')};">{latest['temperature']:.2f}</p>
+                        <p style="color: #666; font-size: 1em;">Status: {get_status_text(latest['temperature'], 'temperature')}</p>
+                    </div>
+                """, unsafe_allow_html=True)
+                
+                # Pressure KPI
+                st.markdown(f"""
+                    <div style="background-color: #262730; border-radius: 10px; padding: 20px; text-align: center; margin-bottom: 10px;">
+                        <p style="font-size: 1.2em; font-weight: bold; color: #a4a4a4;">PSI Pressure (bar)</p>
+                        <p style="font-size: 2.5em; font-weight: bold; color: {get_status_color(latest['pressure'], 'pressure')};">{latest['pressure']:.2f}</p>
+                        <p style="color: #666; font-size: 1em;">Status: {get_status_text(latest['pressure'], 'pressure')}</p>
+                    </div>
+                """, unsafe_allow_html=True)
+                
+                # Vibration KPI
+                st.markdown(f"""
+                    <div style="background-color: #262730; border-radius: 10px; padding: 20px; text-align: center;">
+                        <p style="font-size: 1.2em; font-weight: bold; color: #a4a4a4;">📳 Vibration</p>
+                        <p style="font-size: 2.5em; font-weight: bold; color: {get_status_color(latest['vibration'], 'vibration')};">{latest['vibration']:.2f}</p>
+                        <p style="color: #666; font-size: 1em;">Status: {get_status_text(latest['vibration'], 'vibration')}</p>
                     </div>
                 """, unsafe_allow_html=True)
             
-            with col2:
-                st.markdown(f"""
-                    <div style="
-                        background-color: #262730; 
-                        border-radius: 10px; 
-                        padding: 20px; 
-                        text-align: center;
-                    ">
-                        <p style="
-                            font-size: 1.2em; 
-                            font-weight: bold; 
-                            color: #a4a4a4;
-                        ">
-                            PSI Pressure (bar)
-                        </p>
-                        <p style="
-                            font-size: 2.5em; 
-                            font-weight: bold; 
-                            color: {get_status_color(latest['pressure'], 'pressure')};
-                        ">
-                            {latest['pressure']:.2f}
-                        </p>
-                        <p style="
-                            color: #666; 
-                            font-size: 1em;
-                        ">
-                            Status: {get_status_text(latest['pressure'], 'pressure')}
-                        </p>
-                    </div>
-                """, unsafe_allow_html=True)
-            
-            with col3:
-                st.markdown(f"""
-                    <div style="
-                        background-color: #262730; 
-                        border-radius: 10px; 
-                        padding: 20px; 
-                        text-align: center;
-                    ">
-                        <p style="
-                            font-size: 1.2em; 
-                            font-weight: bold; 
-                            color: #a4a4a4;
-                        ">
-                            📳 Vibration
-                        </p>
-                        <p style="
-                            font-size: 2.5em; 
-                            font-weight: bold; 
-                            color: {get_status_color(latest['vibration'], 'vibration')};
-                        ">
-                            {latest['vibration']:.2f}
-                        </p>
-                        <p style="
-                            color: #666; 
-                            font-size: 1em;
-                        ">
-                            Status: {get_status_text(latest['vibration'], 'vibration')}
-                        </p>
-                    </div>
-                """, unsafe_allow_html=True)
+            with chart_col:
+                st.subheader("Historical Trends")
+                # Temperature Chart
+                fig_temp = go.Figure()
+                fig_temp.add_trace(go.Scatter(x=df.index, y=df['temperature'], mode='lines', name='Temperature'))
+                fig_temp.add_hline(y=60, line_dash="dash", line_color="orange", annotation_text="Warning")
+                fig_temp.add_hline(y=80, line_dash="dash", line_color="red", annotation_text="Critical")
+                fig_temp.update_layout(height=250, margin={"l": 0, "r": 0, "t": 30, "b": 0})
+                st.plotly_chart(fig_temp, use_container_width=True)
 
-            st.markdown("---")
+                # Pressure Chart
+                fig_pressure = go.Figure()
+                fig_pressure.add_trace(go.Scatter(x=df.index, y=df['pressure'], mode='lines', name='Pressure', line_color='#88d8b0'))
+                fig_pressure.add_hline(y=9, line_dash="dash", line_color="orange", annotation_text="Warning")
+                fig_pressure.add_hline(y=12, line_dash="dash", line_color="red", annotation_text="Critical")
+                fig_pressure.update_layout(height=250, margin={"l": 0, "r": 0, "t": 30, "b": 0})
+                st.plotly_chart(fig_pressure, use_container_width=True)
 
-            # --- Chart for all parameters ---
-            st.subheader("Historical Trends")
+                # Vibration Chart
+                fig_vibration = go.Figure()
+                fig_vibration.add_trace(go.Scatter(x=df.index, y=df['vibration'], mode='lines', name='Vibration', line_color='#6a5acd'))
+                fig_vibration.add_hline(y=3, line_dash="dash", line_color="orange", annotation_text="Warning")
+                fig_vibration.add_hline(y=5, line_dash="dash", line_color="red", annotation_text="Critical")
+                fig_vibration.update_layout(height=250, margin={"l": 0, "r": 0, "t": 30, "b": 0})
+                st.plotly_chart(fig_vibration, use_container_width=True)
             
-            df_melt = df.reset_index().melt('timestamp', var_name='Parameter', value_name='Value')
-            fig = px.line(df_melt, x='timestamp', y='Value', color='Parameter',
-                          title='Combined Sensor Trends')
-            
-            st.plotly_chart(fig, use_container_width=True)
-
             # --- Database Viewer as Expander ---
             st.markdown("---")
             with st.expander("📂 View Raw Database Data"):
