@@ -187,18 +187,23 @@ while True:
                 "1 week": 10080,
                 "1 month": 43200
             }
+
+            # Use st.session_state for stable selectbox keys
+            if 'time_interval_selectbox' not in st.session_state:
+                st.session_state.time_interval_selectbox = "5 minutes"
+            if 'historical_param_selectbox' not in st.session_state:
+                st.session_state.historical_param_selectbox = "temperature"
             
-            # Make keys dynamic inside the loop
             selected_interval = st.selectbox(
                 "Select Time Frame:",
                 list(intervals.keys()),
-                key=f'time_interval_selectbox_{time.time()}'
+                key='time_interval_selectbox'
             )
             
             selected_param = st.selectbox(
                 "Select Parameter:",
                 ['temperature', 'pressure', 'vibration'],
-                key=f'historical_param_selectbox_{time.time()}'
+                key='historical_param_selectbox'
             )
             
             # Fetch data based on the selected interval
@@ -223,7 +228,7 @@ while True:
                     crit_thresh=80 if selected_param == 'temperature' else 12 if selected_param == 'pressure' else 5,
                     height=450
                 )
-                st.plotly_chart(fig_historical, use_container_width=True, key=f'historical_chart_{time.time()}')
+                st.plotly_chart(fig_historical, use_container_width=True, key='historical_chart')
                 
                 st.markdown("---")
                 
@@ -238,7 +243,7 @@ while True:
                     csv,
                     f"{selected_param}_data_{selected_interval}.csv",
                     "text/csv",
-                    key=f'historical_download_{time.time()}'
+                    key='historical_download'
                 )
 
         # ============================================================
@@ -258,7 +263,7 @@ while True:
                     csv,
                     "air_compressor_data.csv",
                     "text/csv",
-                    key=f'all_download_{time.time()}'
+                    key='all_download'
                 )
 
     time.sleep(5)
