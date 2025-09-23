@@ -111,7 +111,7 @@ def create_chart(df, param_name, title, color, warn_thresh=None, crit_thresh=Non
 
     fig.update_layout(
         height=height,
-        margin={"l": 0, "r": 0, "t": 30, "b": 0},
+        margin={"l": 10, "r": 10, "t": 30, "b": 0},
         title=dict(text=title, font=dict(size=14)),
         template="plotly_dark",
         xaxis_title=None,
@@ -122,8 +122,8 @@ def create_chart(df, param_name, title, color, warn_thresh=None, crit_thresh=Non
 
 # --- Main App Logic ---
 st.title("Air Compressor Monitoring Dashboard ⚙️")
+st.markdown("A real-time dashboard for tracking key operational metrics.")
 
-# Use a placeholder for the live-updating content
 dashboard_placeholder = st.empty()
 
 while True:
@@ -131,10 +131,7 @@ while True:
     
     with dashboard_placeholder.container():
         tab1, tab2, tab3 = st.tabs(["📊 Live Dashboard", "📅 Historical Analysis", "📂 Database"])
-        
-        # ============================================================
-        # TAB 1: LIVE DASHBOARD
-        # ============================================================
+
         with tab1:
             if live_df.empty:
                 st.warning("No data available. Please check your ESP32 connection.")
@@ -171,10 +168,7 @@ while True:
                     st.markdown("##### Vibration Trend")
                     fig_vibration = create_chart(live_df, 'vibration', 'Vibration Trend', '#6a5acd', 3, 5, height=350)
                     st.plotly_chart(fig_vibration, use_container_width=True, key=f"live_vibration_{time.time()}")
-        
-        # ============================================================
-        # TAB 2: HISTORICAL ANALYSIS
-        # ============================================================
+            
         with tab2:
             st.subheader("Analyze Historical Data")
             
@@ -243,9 +237,6 @@ while True:
                     key=f'historical_download_{time.time()}'
                 )
 
-        # ============================================================
-        # TAB 3: RAW DATABASE
-        # ============================================================
         with tab3:
             st.subheader("Raw Database Data")
             live_df = get_live_data()
@@ -262,5 +253,5 @@ while True:
                     "text/csv",
                     key=f'all_download_{time.time()}'
                 )
-
+    
     time.sleep(5)
