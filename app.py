@@ -132,7 +132,7 @@ while True:
                     
                     # Vibration KPI
                     st.markdown(f"""
-                        <div style="background-color: #262730; border-radius: 10px; padding: 20px; text-align: center;">
+                        <div style="background-color: #262730; border-radius: 10px; padding: 20px; text-align: center; margin-bottom: 10px;">
                             <p style="font-size: 1.2em; font-weight: bold; color: #a4a4a4;">📳 Vibration</p>
                             <p style="font-size: 2.5em; font-weight: bold; color: {get_status_color(latest['vibration'], 'vibration')};">{latest['vibration']:.2f}</p>
                             <p style="color: #666; font-size: 1em;">Status: {get_status_text(latest['vibration'], 'vibration')}</p>
@@ -181,7 +181,7 @@ while True:
                     csv,
                     "air_compressor_data.csv",
                     "text/csv",
-                    key='download-csv'
+                    key=f'download-csv_{time.time()}'
                 )
     
     time.sleep(5)
