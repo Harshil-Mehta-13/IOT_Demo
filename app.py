@@ -46,28 +46,6 @@ def get_live_data():
         st.error(f"Error fetching data: {e}")
         return pd.DataFrame()
 
-def get_historical_data(start_time):
-    try:
-        response = (
-            supabase_client.table("air_compressor")
-            .select("*")
-            .gte("timestamp", start_time.isoformat())
-            .order("timestamp", desc=True)
-            .execute()
-        )
-        data = response.data
-        if not data:
-            return pd.DataFrame()
-        
-        df = pd.DataFrame(data)
-        ist = pytz.timezone('Asia/Kolkata')
-        df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.tz_convert(ist)
-        df = df.set_index("timestamp").sort_index()
-        return df
-    except Exception as e:
-        st.error(f"Error fetching historical data: {e}")
-        return pd.DataFrame()
-
 def get_status_color(value, param_name):
     if param_name == 'temperature':
         if value > 80: return "#ff4b4b"
@@ -120,20 +98,21 @@ def create_chart(df, param_name, title, color, warn_thresh=None, crit_thresh=Non
 
 # --- Main App Logic ---
 st.title("Air Compressor Monitoring Dashboard ⚙️")
+st.markdown("A real-time dashboard for tracking key operational metrics.")
 
-dashboard_placeholder = st.empty()
+with st.sidebar:
+    st.header("Navigation")
+    app_mode = st.radio("Choose a page", ["Live Dashboard", "Database"])
 
-while True:
-    df = get_live_data()
-
-    with dashboard_placeholder.container():
-        tab1, tab2, tab3 = st.tabs(["📊 Live Dashboard", "📅 Historical Analysis", "📂 Database"])
-
-        with tab1:
-            if df.empty:
+if app_mode == "Live Dashboard":
+    live_placeholder = st.empty()
+    while True:
+        live_df = get_live_data()
+        with live_placeholder.container():
+            if live_df.empty:
                 st.warning("No data available. Please check your ESP32 connection.")
             else:
-                latest = df.iloc[-1]
+                latest = live_df.iloc[-1]
                 
                 kpi_col1, kpi_col2, kpi_col3 = st.columns(3)
 
@@ -151,101 +130,75 @@ while True:
                 
                 st.subheader("Historical Trends (Last 100 Entries)")
                 
-                chart_col1, chart_col2, chart_col3 = st.columns(3)
+                chart_col1, chart_col2, chart_col3 = st.columns([0.75, 0.75, 0.75])
 
                 with chart_col1:
                     st.markdown("##### Temperature Trend")
-                    fig_temp = create_chart(df, 'temperature', '', '#00BFFF', 60, 80, height=350)
-                    st.plotly_chart(fig_temp, use_container_width=True, key=f"temp_chart_{time.time()}")
-    
+                    fig_temp = create_chart(live_df, 'temperature', 'Temperature Trend', '#00BFFF', 60, 80, height=350)
+                    st.plotly_chart(fig_temp, use_container_width=True, key=f"live_temp_{time.time()}")
                 with chart_col2:
                     st.markdown("##### Pressure Trend")
-                    fig_pressure = create_chart(df, 'pressure', '', '#88d8b0', 9, 12, height=350)
-                    st.plotly_chart(fig_pressure, use_container_width=True, key=f"pressure_chart_{time.time()}")
-    
+                    fig_pressure = create_chart(live_df, 'pressure', 'Pressure Trend', '#88d8b0', 9, 12, height=350)
+                    st.plotly_chart(fig_pressure, use_container_width=True, key=f"live_pressure_{time.time()}")
                 with chart_col3:
                     st.markdown("##### Vibration Trend")
-                    fig_vibration = create_chart(df, 'vibration', '', '#6a5acd', 3, 5, height=350)
-                    st.plotly_chart(fig_vibration, use_container_width=True, key=f"vibration_chart_{time.time()}")
-            
-        with tab2:
-            st.subheader("Analyze Historical Data")
-            
-            intervals = {
-                "5 minutes": 5,
-                "15 minutes": 15,
-                "30 minutes": 30,
-                "1 hour": 60,
-                "3 hours": 180,
-                "1 day": 1440,
-                "1 week": 10080,
-                "1 month": 43200
-            }
+                    fig_vibration = create_chart(live_df, 'vibration', 'Vibration Trend', '#6a5acd', 3, 5, height=350)
+                    st.plotly_chart(fig_vibration, use_container_width=True, key=f"live_vibration_{time.time()}")
+        
+        time.sleep(5)
 
-            selected_interval = st.selectbox(
-                "Select Time Frame:",
-                list(intervals.keys()),
-                key=f'time_interval_selectbox_{time.time()}'
-            )
-            
-            selected_param = st.selectbox(
-                "Select Parameter:",
-                ['temperature', 'pressure', 'vibration'],
-                key=f'historical_param_selectbox_{time.time()}'
-            )
-            
-            now_utc = datetime.now(pytz.utc)
-            start_time_utc = now_utc - timedelta(minutes=intervals[selected_interval])
-            
-            historical_df = get_historical_data(start_time_utc)
-            
-            if historical_df.empty:
-                st.warning("No data found for the selected time frame.")
+elif app_mode == "Database":
+    st.subheader("Raw Database Data")
+    
+    # Filters in a single row
+    col_start, col_end, col_param = st.columns(3)
+    with col_start:
+        start_date = st.date_input("Start Date", value=datetime.now().date() - timedelta(days=7))
+    with col_end:
+        end_date = st.date_input("End Date", value=datetime.now().date())
+    with col_param:
+        parameters = ['temperature', 'pressure', 'vibration']
+        selected_params = st.multiselect("Select Parameter(s) to Filter:", options=parameters, default=parameters)
+    
+    # Query data within the selected date range
+    start_dt = datetime.combine(start_date, datetime.min.time())
+    end_dt = datetime.combine(end_date, datetime.max.time())
+    
+    try:
+        # Convert to UTC before querying
+        ist = pytz.timezone('Asia/Kolkata')
+        start_dt_utc = ist.localize(start_dt, is_dst=None).astimezone(pytz.utc)
+        end_dt_utc = ist.localize(end_dt, is_dst=None).astimezone(pytz.utc)
+        
+        response = supabase_client.table("air_compressor").select("*").gte("timestamp", start_dt_utc.isoformat()).lte("timestamp", end_dt_utc.isoformat()).execute()
+        
+        filtered_df = pd.DataFrame(response.data)
+        if filtered_df.empty:
+            st.warning("No records found for the selected date range.")
+        else:
+            # Filter by parameter
+            if selected_params:
+                # Always include the timestamp column
+                cols_to_display = ['timestamp'] + selected_params
+                filtered_df = filtered_df[cols_to_display]
             else:
-                st.markdown("---")
+                # If no parameters are selected, show a message or the full table
+                st.warning("Please select at least one parameter.")
+                filtered_df = pd.DataFrame()
+
+            # Display filtered data
+            if not filtered_df.empty:
+                st.dataframe(filtered_df, use_container_width=True, height=500)
                 
-                st.subheader(f"Historical Trend for {selected_param.title()}")
-                
-                fig_historical = create_chart(
-                    historical_df, 
-                    selected_param, 
-                    f"{selected_param.title()} Trend ({selected_interval})", 
-                    '#ffcc00', 
-                    warn_thresh=60 if selected_param == 'temperature' else 9 if selected_param == 'pressure' else 3,
-                    crit_thresh=80 if selected_param == 'temperature' else 12 if selected_param == 'pressure' else 5,
-                    height=350
-                )
-                st.plotly_chart(fig_historical, use_container_width=True, key=f'historical_chart_{time.time()}')
-                
-                st.markdown("---")
-                
-                st.subheader("Historical Data Table")
-                filtered_df = historical_df[[selected_param]]
-                st.dataframe(filtered_df, use_container_width=True)
-                
+                # Download button for filtered data
                 csv = filtered_df.to_csv().encode('utf-8')
                 st.download_button(
                     "⬇️ Download Filtered CSV",
                     csv,
-                    f"{selected_param}_data_{selected_interval}.csv",
+                    "filtered_data.csv",
                     "text/csv",
-                    key=f'historical_download_{time.time()}'
+                    key='download_filtered'
                 )
-
-        with tab3:
-            st.subheader("Raw Database Data")
-            if df.empty:
-                st.warning("No records in database.")
-            else:
-                st.dataframe(df, use_container_width=True, height=500)
-                
-                csv = df.to_csv().encode('utf-8')
-                st.download_button(
-                    "⬇️ Download All CSV",
-                    csv,
-                    "air_compressor_data.csv",
-                    "text/csv",
-                    key=f'all_download_{time.time()}'
-                )
-    
-    time.sleep(5)
+            
+    except Exception as e:
+        st.error(f"Error fetching data: {e}")
