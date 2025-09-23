@@ -154,7 +154,7 @@ while True:
 
                 st.markdown("---")
                 
-                st.subheader("Historical Trends (Last 100 Entries)")
+                st.subheader("Critical Paremeters Trend")
                 
                 chart_col1, chart_col2, chart_col3 = st.columns(3)
 
