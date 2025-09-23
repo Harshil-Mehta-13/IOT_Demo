@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 from supabase import create_client, Client
 import time
-import plotly.express as px
+import plotly.graph_objects as go
 
 # --- Page Config ---
 st.set_page_config(
@@ -79,34 +79,48 @@ with tab1:
         kpi1, kpi2, kpi3 = st.columns(3)
 
         # Temperature KPI
+        temp_color = "🔴" if latest["temperature"] > 80 else ("🟠" if latest["temperature"] > 60 else "🟢")
         kpi1.metric("Temperature (°C)", f"{latest['temperature']:.2f}")
+        kpi1.markdown(f"**{temp_color} Status**")
 
         # Pressure KPI
+        pressure_color = "🔴" if latest["pressure"] > 12 else ("🟠" if latest["pressure"] > 9 else "🟢")
         kpi2.metric("Pressure (bar)", f"{latest['pressure']:.2f}")
+        kpi2.markdown(f"**{pressure_color} Status**")
 
         # Vibration KPI
+        vib_color = "🔴" if latest["vibration"] > 5 else ("🟠" if latest["vibration"] > 3 else "🟢")
         kpi3.metric("Vibration", f"{latest['vibration']:.2f}")
+        kpi3.markdown(f"**{vib_color} Status**")
 
         # --- Charts ---
         st.subheader("Real-Time Trends")
         
         # Plotly chart for all parameters
-        fig_all = px.line(df, 
-                        x=df.index, 
-                        y=parameters,
-                        labels={'value': 'Value', 'timestamp': 'Time'},
-                        title='All Sensor Parameters Over Time')
-        fig_all.update_layout(legend_title_text='Parameter')
+        fig_all = go.Figure()
+        for param in parameters:
+            fig_all.add_trace(go.Scatter(x=df.index, y=df[param], mode='lines', name=param.title()))
+        
+        fig_all.update_layout(
+            title_text='All Sensor Parameters Over Time',
+            xaxis_title='Timestamp',
+            yaxis_title='Value',
+            legend_title='Parameter'
+        )
         st.plotly_chart(fig_all, use_container_width=True)
 
         st.markdown("---")
         
         # Plotly chart for selected parameter
         st.subheader(f"Historical Trend for {selected_parameter.title()}")
-        fig_selected = px.line(df, 
-                               x=df.index, 
-                               y=selected_parameter,
-                               labels={'value': selected_parameter.title(), 'timestamp': 'Time'})
+        fig_selected = go.Figure()
+        fig_selected.add_trace(go.Scatter(x=df.index, y=df[selected_parameter], mode='lines'))
+        
+        fig_selected.update_layout(
+            title_text=f'Trend for {selected_parameter.title()}',
+            xaxis_title='Timestamp',
+            yaxis_title=selected_parameter.title()
+        )
         st.plotly_chart(fig_selected, use_container_width=True)
         
         # --- Insights ---
