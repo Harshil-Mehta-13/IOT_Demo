@@ -4,6 +4,8 @@ from supabase import create_client, Client
 import time
 import plotly.graph_objects as go
 import pytz
+import smtplib
+from email.mime.text import MIMEText
 from datetime import datetime, timedelta
 
 # --- Page Config ---
@@ -96,8 +98,28 @@ def create_chart(df, param_name, title, color, warn_thresh=None, crit_thresh=Non
     )
     return fig
 
+# --- Email Notification Functions ---
+def send_alert_email(subject, body):
+    try:
+        sender_email = st.secrets["EMAIL_SENDER"]
+        sender_password = st.secrets["EMAIL_PASSWORD"]
+        receiver_email = st.secrets["EMAIL_RECEIVER"]
+        
+        msg = MIMEText(body)
+        msg["Subject"] = subject
+        msg["From"] = sender_email
+        msg["To"] = receiver_email
+        
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+            server.login(sender_email, sender_password)
+            server.sendmail(sender_email, receiver_email, msg.as_string())
+        st.success("Email alert sent!")
+    except Exception as e:
+        st.error(f"Failed to send email alert: {e}")
+
 # --- Main App Logic ---
 st.title("Air Compressor Monitoring Dashboard ⚙️")
+st.markdown("A real-time dashboard for tracking key operational metrics.")
 
 with st.sidebar:
     st.header("Navigation")
@@ -107,11 +129,25 @@ if app_mode == "Live Dashboard":
     live_placeholder = st.empty()
     while True:
         live_df = get_live_data()
+        
+        if 'last_alert_status' not in st.session_state:
+            st.session_state.last_alert_status = {}
+        
         with live_placeholder.container():
             if live_df.empty:
                 st.warning("No data available. Please check your ESP32 connection.")
             else:
                 latest = live_df.iloc[-1]
+                
+                # --- Alert Logic ---
+                for param in ['temperature', 'pressure', 'vibration']:
+                    current_status = get_status_text(latest[param], param)
+                    if current_status in ["Warning", "Critical"]:
+                        if st.session_state.last_alert_status.get(param) != current_status:
+                            subject = f"Air Compressor ALERT: {param.upper()} is {current_status}!"
+                            body = f"The latest reading for {param.title()} is {latest[param]:.2f}, which is in a {current_status} state. Please check the dashboard immediately."
+                            send_alert_email(subject, body)
+                            st.session_state.last_alert_status[param] = current_status
                 
                 kpi_col1, kpi_col2, kpi_col3 = st.columns(3)
 
@@ -127,21 +163,21 @@ if app_mode == "Live Dashboard":
 
                 st.markdown("---")
                 
-                st.subheader("Critical Parameter Trends")
+                st.subheader("Historical Trends (Last 100 Entries)")
                 
                 chart_col1, chart_col2, chart_col3 = st.columns([0.75, 0.75, 0.75])
 
                 with chart_col1:
                     st.markdown("##### Temperature Trend")
-                    fig_temp = create_chart(live_df, 'temperature', '', '#00BFFF', 60, 80, height=350)
+                    fig_temp = create_chart(live_df, 'temperature', 'Temperature Trend', '#00BFFF', 60, 80, height=350)
                     st.plotly_chart(fig_temp, use_container_width=True, key=f"live_temp_{time.time()}")
                 with chart_col2:
                     st.markdown("##### Pressure Trend")
-                    fig_pressure = create_chart(live_df, 'pressure', '', '#88d8b0', 9, 12, height=350)
+                    fig_pressure = create_chart(live_df, 'pressure', 'Pressure Trend', '#88d8b0', 9, 12, height=350)
                     st.plotly_chart(fig_pressure, use_container_width=True, key=f"live_pressure_{time.time()}")
                 with chart_col3:
                     st.markdown("##### Vibration Trend")
-                    fig_vibration = create_chart(live_df, 'vibration', '', '#6a5acd', 3, 5, height=350)
+                    fig_vibration = create_chart(live_df, 'vibration', 'Vibration Trend', '#6a5acd', 3, 5, height=350)
                     st.plotly_chart(fig_vibration, use_container_width=True, key=f"live_vibration_{time.time()}")
         
         time.sleep(5)
@@ -192,7 +228,7 @@ elif app_mode == "Database":
                 # Download button for filtered data
                 csv = filtered_df.to_csv().encode('utf-8')
                 st.download_button(
-                    "⬇️ Download Data (CSV File)",
+                    "⬇️ Download Filtered CSV",
                     csv,
                     "filtered_data.csv",
                     "text/csv",
