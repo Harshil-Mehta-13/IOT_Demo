@@ -142,7 +142,7 @@ while True:
                 fig_temp.add_hline(y=60, line_dash="dash", line_color="orange", annotation_text="Warning")
                 fig_temp.add_hline(y=80, line_dash="dash", line_color="red", annotation_text="Critical")
                 fig_temp.update_layout(height=250, margin={"l": 0, "r": 0, "t": 30, "b": 0})
-                st.plotly_chart(fig_temp, use_container_width=True, key="temp_chart")
+                st.plotly_chart(fig_temp, use_container_width=True, key="temp_chart_while_loop")
 
                 # Pressure Chart
                 fig_pressure = go.Figure()
@@ -150,7 +150,7 @@ while True:
                 fig_pressure.add_hline(y=9, line_dash="dash", line_color="orange", annotation_text="Warning")
                 fig_pressure.add_hline(y=12, line_dash="dash", line_color="red", annotation_text="Critical")
                 fig_pressure.update_layout(height=250, margin={"l": 0, "r": 0, "t": 30, "b": 0})
-                st.plotly_chart(fig_pressure, use_container_width=True, key="pressure_chart")
+                st.plotly_chart(fig_pressure, use_container_width=True, key="pressure_chart_while_loop")
 
                 # Vibration Chart
                 fig_vibration = go.Figure()
@@ -158,7 +158,7 @@ while True:
                 fig_vibration.add_hline(y=3, line_dash="dash", line_color="orange", annotation_text="Warning")
                 fig_vibration.add_hline(y=5, line_dash="dash", line_color="red", annotation_text="Critical")
                 fig_vibration.update_layout(height=250, margin={"l": 0, "r": 0, "t": 30, "b": 0})
-                st.plotly_chart(fig_vibration, use_container_width=True, key="vibration_chart")
+                st.plotly_chart(fig_vibration, use_container_width=True, key="vibration_chart_while_loop")
             
             # --- Database Viewer as Expander ---
             st.markdown("---")
