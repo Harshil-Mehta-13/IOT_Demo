@@ -3,6 +3,7 @@ import pandas as pd
 from supabase import create_client, Client
 import time
 import plotly.express as px
+import plotly.graph_objects as go
 
 # --- Page Config ---
 st.set_page_config(
