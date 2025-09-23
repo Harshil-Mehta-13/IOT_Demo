@@ -122,139 +122,145 @@ def create_chart(df, param_name, title, color, warn_thresh=None, crit_thresh=Non
 
 # --- Main App Logic ---
 st.title("Air Compressor Monitoring Dashboard ⚙️")
+st.markdown("A real-time dashboard for tracking key operational metrics.")
 
-tab1, tab2, tab3 = st.tabs(["📊 Live Dashboard", "📅 Historical Analysis", "📂 Database"])
+dashboard_placeholder = st.empty()
 
-# ============================================================
-# TAB 1: LIVE DASHBOARD
-# ============================================================
-with tab1:
+while True:
     live_df = get_live_data()
-    if live_df.empty:
-        st.warning("No data available. Please check your ESP32 connection.")
-    else:
-        latest = live_df.iloc[-1]
-        
-        kpi_col1, kpi_col2, kpi_col3 = st.columns(3)
-
-        with kpi_col1:
-            st.metric(label="🌡️ Temp (°C)", value=f"{latest['temperature']:.2f}")
-            st.markdown(f"**Status:** <span style='color: {get_status_color(latest['temperature'], 'temperature')};'>{get_status_text(latest['temperature'], 'temperature')}</span>", unsafe_allow_html=True)
-        with kpi_col2:
-            st.metric(label="PSI Pressure (bar)", value=f"{latest['pressure']:.2f}")
-            st.markdown(f"**Status:** <span style='color: {get_status_color(latest['pressure'], 'pressure')};'>{get_status_text(latest['pressure'], 'pressure')}</span>", unsafe_allow_html=True)
-        with kpi_col3:
-            st.metric(label="📳 Vibration", value=f"{latest['vibration']:.2f}")
-            st.markdown(f"**Status:** <span style='color: {get_status_color(latest['vibration'], 'vibration')};'>{get_status_text(latest['vibration'], 'vibration')}</span>", unsafe_allow_html=True)
-
-        st.markdown("---")
-        
-        st.subheader("Historical Trends (Last 100 Entries)")
-        
-        chart_col1, chart_col2, chart_col3 = st.columns([0.75, 0.75, 0.75])
-
-        with chart_col1:
-            st.markdown("##### Temperature Trend")
-            fig_temp = create_chart(live_df, 'temperature', 'Temperature Trend', '#00BFFF', 60, 80, height=350)
-            st.plotly_chart(fig_temp, use_container_width=True)
-        with chart_col2:
-            st.markdown("##### Pressure Trend")
-            fig_pressure = create_chart(live_df, 'pressure', 'Pressure Trend', '#88d8b0', 9, 12, height=350)
-            st.plotly_chart(fig_pressure, use_container_width=True)
-        with chart_col3:
-            st.markdown("##### Vibration Trend")
-            fig_vibration = create_chart(live_df, 'vibration', 'Vibration Trend', '#6a5acd', 3, 5, height=350)
-            st.plotly_chart(fig_vibration, use_container_width=True)
     
-    st.markdown("---")
-    st.write("Dashboard auto-refreshes every 5 seconds.")
+    with dashboard_placeholder.container():
+        tab1, tab2, tab3 = st.tabs(["📊 Live Dashboard", "📅 Historical Analysis", "📂 Database"])
+        
+        # ============================================================
+        # TAB 1: LIVE DASHBOARD
+        # ============================================================
+        with tab1:
+            if live_df.empty:
+                st.warning("No data available. Please check your ESP32 connection.")
+            else:
+                latest = live_df.iloc[-1]
+                
+                kpi_col1, kpi_col2, kpi_col3 = st.columns(3)
 
-# ============================================================
-# TAB 2: HISTORICAL ANALYSIS
-# ============================================================
-with tab2:
-    st.subheader("Analyze Historical Data")
-    
-    intervals = {
-        "5 minutes": 5,
-        "15 minutes": 15,
-        "30 minutes": 30,
-        "1 hour": 60,
-        "3 hours": 180,
-        "1 day": 1440,
-        "1 week": 10080,
-        "1 month": 43200
-    }
+                with kpi_col1:
+                    st.metric(label="🌡️ Temp (°C)", value=f"{latest['temperature']:.2f}")
+                    st.markdown(f"**Status:** <span style='color: {get_status_color(latest['temperature'], 'temperature')};'>{get_status_text(latest['temperature'], 'temperature')}</span>", unsafe_allow_html=True)
+                with kpi_col2:
+                    st.metric(label="PSI Pressure (bar)", value=f"{latest['pressure']:.2f}")
+                    st.markdown(f"**Status:** <span style='color: {get_status_color(latest['pressure'], 'pressure')};'>{get_status_text(latest['pressure'], 'pressure')}</span>", unsafe_allow_html=True)
+                with kpi_col3:
+                    st.metric(label="📳 Vibration", value=f"{latest['vibration']:.2f}")
+                    st.markdown(f"**Status:** <span style='color: {get_status_color(latest['vibration'], 'vibration')};'>{get_status_text(latest['vibration'], 'vibration')}</span>", unsafe_allow_html=True)
 
-    selected_interval = st.selectbox(
-        "Select Time Frame:",
-        list(intervals.keys()),
-        key='time_interval_selectbox'
-    )
-    
-    selected_param = st.selectbox(
-        "Select Parameter:",
-        ['temperature', 'pressure', 'vibration'],
-        key='historical_param_selectbox'
-    )
-    
-    now_utc = datetime.now(pytz.utc)
-    start_time_utc = now_utc - timedelta(minutes=intervals[selected_interval])
-    
-    historical_df = get_historical_data(start_time_utc)
-    
-    if historical_df.empty:
-        st.warning("No data found for the selected time frame.")
-    else:
-        st.markdown("---")
-        
-        st.subheader(f"Historical Trend for {selected_param.title()}")
-        
-        fig_historical = create_chart(
-            historical_df, 
-            selected_param, 
-            f"{selected_param.title()} Trend ({selected_interval})", 
-            '#ffcc00', 
-            warn_thresh=60 if selected_param == 'temperature' else 9 if selected_param == 'pressure' else 3,
-            crit_thresh=80 if selected_param == 'temperature' else 12 if selected_param == 'pressure' else 5,
-            height=350
-        )
-        st.plotly_chart(fig_historical, use_container_width=True)
-        
-        st.markdown("---")
-        
-        st.subheader("Historical Data Table")
-        st.dataframe(historical_df, use_container_width=True)
-        
-        csv = historical_df.to_csv().encode('utf-8')
-        st.download_button(
-            "⬇️ Download Filtered CSV",
-            csv,
-            f"{selected_param}_data_{selected_interval}.csv",
-            "text/csv",
-            key='historical_download'
-        )
+                st.markdown("---")
+                
+                st.subheader("Historical Trends (Last 100 Entries)")
+                
+                chart_col1, chart_col2, chart_col3 = st.columns([0.75, 0.75, 0.75])
 
-# ============================================================
-# TAB 3: RAW DATABASE
-# ============================================================
-with tab3:
-    st.subheader("Raw Database Data")
-    all_live_df = get_live_data()
-    if all_live_df.empty:
-        st.warning("No records in database.")
-    else:
-        st.dataframe(all_live_df, use_container_width=True, height=500)
+                with chart_col1:
+                    st.markdown("##### Temperature Trend")
+                    fig_temp = create_chart(live_df, 'temperature', 'Temperature Trend', '#00BFFF', 60, 80, height=350)
+                    st.plotly_chart(fig_temp, use_container_width=True, key=f"live_temp_{time.time()}")
+                with chart_col2:
+                    st.markdown("##### Pressure Trend")
+                    fig_pressure = create_chart(live_df, 'pressure', 'Pressure Trend', '#88d8b0', 9, 12, height=350)
+                    st.plotly_chart(fig_pressure, use_container_width=True, key=f"live_pressure_{time.time()}")
+                with chart_col3:
+                    st.markdown("##### Vibration Trend")
+                    fig_vibration = create_chart(live_df, 'vibration', 'Vibration Trend', '#6a5acd', 3, 5, height=350)
+                    st.plotly_chart(fig_vibration, use_container_width=True, key=f"live_vibration_{time.time()}")
         
-        csv = all_live_df.to_csv().encode('utf-8')
-        st.download_button(
-            "⬇️ Download All CSV",
-            csv,
-            "air_compressor_data.csv",
-            "text/csv",
-            key='all_download'
-        )
+        # ============================================================
+        # TAB 2: HISTORICAL ANALYSIS
+        # ============================================================
+        with tab2:
+            st.subheader("Analyze Historical Data")
+            
+            intervals = {
+                "5 minutes": 5,
+                "15 minutes": 15,
+                "30 minutes": 30,
+                "1 hour": 60,
+                "3 hours": 180,
+                "1 day": 1440,
+                "1 week": 10080,
+                "1 month": 43200
+            }
 
-# The auto-refresh logic is now placed at the end to rerun the entire script
-time.sleep(5)
-st.rerun()
+            # Make keys dynamic inside the loop
+            selected_interval = st.selectbox(
+                "Select Time Frame:",
+                list(intervals.keys()),
+                key=f'time_interval_selectbox_{time.time()}'
+            )
+            
+            selected_param = st.selectbox(
+                "Select Parameter:",
+                ['temperature', 'pressure', 'vibration'],
+                key=f'historical_param_selectbox_{time.time()}'
+            )
+            
+            # Get current UTC time and calculate start time for the query
+            now_utc = datetime.now(pytz.utc)
+            start_time_utc = now_utc - timedelta(minutes=intervals[selected_interval])
+            
+            historical_df = get_historical_data(start_time_utc)
+            
+            if historical_df.empty:
+                st.warning("No data found for the selected time frame.")
+            else:
+                st.markdown("---")
+                
+                # Historical Chart
+                st.subheader(f"Historical Trend for {selected_param.title()}")
+                
+                fig_historical = create_chart(
+                    historical_df, 
+                    selected_param, 
+                    f"{selected_param.title()} Trend ({selected_interval})", 
+                    '#ffcc00', 
+                    warn_thresh=60 if selected_param == 'temperature' else 9 if selected_param == 'pressure' else 3,
+                    crit_thresh=80 if selected_param == 'temperature' else 12 if selected_param == 'pressure' else 5,
+                    height=350
+                )
+                st.plotly_chart(fig_historical, use_container_width=True, key=f'historical_chart_{time.time()}')
+                
+                st.markdown("---")
+                
+                # Historical Data Table
+                st.subheader("Historical Data Table")
+                st.dataframe(historical_df, use_container_width=True)
+                
+                # Download button for historical data
+                csv = historical_df.to_csv().encode('utf-8')
+                st.download_button(
+                    "⬇️ Download Filtered CSV",
+                    csv,
+                    f"{selected_param}_data_{selected_interval}.csv",
+                    "text/csv",
+                    key=f'historical_download_{time.time()}'
+                )
+
+        # ============================================================
+        # TAB 3: RAW DATABASE
+        # ============================================================
+        with tab3:
+            st.subheader("Raw Database Data")
+            all_live_df = get_live_data()
+            if all_live_df.empty:
+                st.warning("No records in database.")
+            else:
+                st.dataframe(all_live_df, use_container_width=True, height=500)
+                
+                csv = all_live_df.to_csv().encode('utf-8')
+                st.download_button(
+                    "⬇️ Download All CSV",
+                    csv,
+                    "air_compressor_data.csv",
+                    "text/csv",
+                    key=f'all_download_{time.time()}'
+                )
+
+    time.sleep(5)
