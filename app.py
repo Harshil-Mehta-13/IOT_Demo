@@ -56,15 +56,10 @@ def get_status_color(value, param_name):
         if value > 12: return "#ff4b4b"
         elif value > 9: return "#ffcc00"
         else: return "#2ec27e"
-    elif value > 5:
-        if param_name == 'vibration':
-            return "#ff4b4b"
-    elif value > 3:
-        if param_name == 'vibration':
-            return "#ffcc00"
-    else:
-        if param_name == 'vibration':
-            return "#2ec27e"
+    elif param_name == 'vibration':
+        if value > 5: return "#ff4b4b"
+        elif value > 3: return "#ffcc00"
+        else: return "#2ec27e"
     return "#2ec27e"
 
 def get_status_text(value, param_name):
@@ -113,7 +108,7 @@ while True:
                             box-shadow: 0 4px 8px rgba(0,0,0,0.1);
                         ">
                             <p style="font-size: 1.1em; font-weight: bold; color: #a4a4a4;">🌡️ Temp (°C)</p>
-                            <p style="font-size: 2em; font-weight: bold; color: {get_status_color(latest['temperature'], 'temperature')};">{latest['temperature']:.2f}</p>
+                            <p style="font-size: 1.5em; font-weight: bold; color: {get_status_color(latest['temperature'], 'temperature')};">{latest['temperature']:.2f}</p>
                             <p style="color: #666; font-size: 0.9em;">Status: {get_status_text(latest['temperature'], 'temperature')}</p>
                         </div>
                     """, unsafe_allow_html=True)
@@ -128,7 +123,7 @@ while True:
                             box-shadow: 0 4px 8px rgba(0,0,0,0.1);
                         ">
                             <p style="font-size: 1.1em; font-weight: bold; color: #a4a4a4;">PSI Pressure (bar)</p>
-                            <p style="font-size: 2em; font-weight: bold; color: {get_status_color(latest['pressure'], 'pressure')};">{latest['pressure']:.2f}</p>
+                            <p style="font-size: 1.5em; font-weight: bold; color: {get_status_color(latest['pressure'], 'pressure')};">{latest['pressure']:.2f}</p>
                             <p style="color: #666; font-size: 0.9em;">Status: {get_status_text(latest['pressure'], 'pressure')}</p>
                         </div>
                     """, unsafe_allow_html=True)
@@ -143,7 +138,7 @@ while True:
                             box-shadow: 0 4px 8px rgba(0,0,0,0.1);
                         ">
                             <p style="font-size: 1.1em; font-weight: bold; color: #a4a4a4;">📳 Vibration</p>
-                            <p style="font-size: 2em; font-weight: bold; color: {get_status_color(latest['vibration'], 'vibration')};">{latest['vibration']:.2f}</p>
+                            <p style="font-size: 1.5em; font-weight: bold; color: {get_status_color(latest['vibration'], 'vibration')};">{latest['vibration']:.2f}</p>
                             <p style="color: #666; font-size: 0.9em;">Status: {get_status_text(latest['vibration'], 'vibration')}</p>
                         </div>
                     """, unsafe_allow_html=True)
