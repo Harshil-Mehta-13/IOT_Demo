@@ -101,7 +101,7 @@ st.title("Air Compressor Monitoring Dashboard ⚙️")
 
 with st.sidebar:
     st.header("Navigation")
-    app_mode = st.radio("Choose a page", ["Live Dashboard", "Database"])
+    app_mode = st.radio("Choose a page", ["Dashboard", "Database"])
 
 if app_mode == "Live Dashboard":
     live_placeholder = st.empty()
