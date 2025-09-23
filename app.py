@@ -10,6 +10,9 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# --- Auto Refresh every 5s ---
+st_autorefresh(interval=5000, key="data_refresh")
+
 # --- Supabase Connection ---
 @st.cache_resource(ttl="30s")
 def init_connection():
@@ -124,12 +127,3 @@ with tab2:
             key="download-csv"
         )
 
-# ============================================================
-# AUTO REFRESH
-# ============================================================
-if "last_refresh" not in st.session_state:
-    st.session_state.last_refresh = time.time()
-
-if time.time() - st.session_state.last_refresh > 5:
-    st.session_state.last_refresh = time.time()
-    st.rerun()
