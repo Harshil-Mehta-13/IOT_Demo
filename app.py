@@ -43,8 +43,33 @@ def get_sensor_data():
         st.error(f"Error fetching data: {e}")
         return pd.DataFrame()
 
+# --- Helper Function for Status ---
+def get_status_color(value, param_name):
+    if param_name == 'temperature':
+        if value > 80:
+            return "critical"
+        elif value > 60:
+            return "warning"
+        else:
+            return "normal"
+    elif param_name == 'pressure':
+        if value > 12:
+            return "critical"
+        elif value > 9:
+            return "warning"
+        else:
+            return "normal"
+    elif param_name == 'vibration':
+        if value > 5:
+            return "critical"
+        elif value > 3:
+            return "warning"
+        else:
+            return "normal"
+    return "normal"
+
 # --- Main App Logic ---
-st.title("Air Compressor Monitoring ⚙️")
+st.title("Air Compressor Monitoring Dashboard ⚙️")
 
 # Fetch the data at the start of the script run
 df = get_sensor_data()
@@ -73,25 +98,27 @@ with tab1:
         st.warning("No data available. Waiting for ESP32 to push...")
     else:
         latest = df.iloc[-1]
-
-        # --- KPI Metrics ---
+        
+        # --- KPI Cards ---
         st.subheader("Latest Readings")
-        kpi1, kpi2, kpi3 = st.columns(3)
+        col1, col2, col3 = st.columns(3)
 
-        # Temperature KPI
-        temp_color = "🔴" if latest["temperature"] > 80 else ("🟠" if latest["temperature"] > 60 else "🟢")
-        kpi1.metric("Temperature (°C)", f"{latest['temperature']:.2f}")
-        kpi1.markdown(f"**{temp_color} Status**")
+        # Temperature KPI Card
+        temp_status = get_status_color(latest["temperature"], 'temperature')
+        col1.metric("Temperature (°C)", f"{latest['temperature']:.2f}", help="Real-time temperature")
+        col1.markdown(f"**Status:** <span style='color: {'red' if temp_status == 'critical' else 'orange' if temp_status == 'warning' else 'green'};'>{temp_status.capitalize()}</span>", unsafe_allow_html=True)
+        
+        # Pressure KPI Card
+        pressure_status = get_status_color(latest["pressure"], 'pressure')
+        col2.metric("Pressure (bar)", f"{latest['pressure']:.2f}")
+        col2.markdown(f"**Status:** <span style='color: {'red' if pressure_status == 'critical' else 'orange' if pressure_status == 'warning' else 'green'};'>{pressure_status.capitalize()}</span>", unsafe_allow_html=True)
+        
+        # Vibration KPI Card
+        vibration_status = get_status_color(latest["vibration"], 'vibration')
+        col3.metric("Vibration", f"{latest['vibration']:.2f}")
+        col3.markdown(f"**Status:** <span style='color: {'red' if vibration_status == 'critical' else 'orange' if vibration_status == 'warning' else 'green'};'>{vibration_status.capitalize()}</span>", unsafe_allow_html=True)
 
-        # Pressure KPI
-        pressure_color = "🔴" if latest["pressure"] > 12 else ("🟠" if latest["pressure"] > 9 else "🟢")
-        kpi2.metric("Pressure (bar)", f"{latest['pressure']:.2f}")
-        kpi2.markdown(f"**{pressure_color} Status**")
-
-        # Vibration KPI
-        vib_color = "🔴" if latest["vibration"] > 5 else ("🟠" if latest["vibration"] > 3 else "🟢")
-        kpi3.metric("Vibration", f"{latest['vibration']:.2f}")
-        kpi3.markdown(f"**{vib_color} Status**")
+        st.markdown("---")
 
         # --- Charts ---
         st.subheader("Real-Time Trends")
@@ -111,50 +138,50 @@ with tab1:
 
         st.markdown("---")
         
-        # Plotly chart for selected parameter
+        # Plotly chart for selected parameter with thresholds
         st.subheader(f"Historical Trend for {selected_parameter.title()}")
         fig_selected = go.Figure()
-        fig_selected.add_trace(go.Scatter(x=df.index, y=df[selected_parameter], mode='lines'))
+        fig_selected.add_trace(go.Scatter(x=df.index, y=df[selected_parameter], mode='lines', name=selected_parameter.title()))
         
+        # Add threshold lines
+        if selected_parameter == 'temperature':
+            fig_selected.add_hline(y=60, line_dash="dash", line_color="orange", annotation_text="Warning Threshold", annotation_position="top left")
+            fig_selected.add_hline(y=80, line_dash="dash", line_color="red", annotation_text="Critical Threshold", annotation_position="top right")
+        elif selected_parameter == 'pressure':
+            fig_selected.add_hline(y=9, line_dash="dash", line_color="orange", annotation_text="Warning Threshold", annotation_position="top left")
+            fig_selected.add_hline(y=12, line_dash="dash", line_color="red", annotation_text="Critical Threshold", annotation_position="top right")
+        elif selected_parameter == 'vibration':
+            fig_selected.add_hline(y=3, line_dash="dash", line_color="orange", annotation_text="Warning Threshold", annotation_position="top left")
+            fig_selected.add_hline(y=5, line_dash="dash", line_color="red", annotation_text="Critical Threshold", annotation_position="top right")
+
         fig_selected.update_layout(
             title_text=f'Trend for {selected_parameter.title()}',
             xaxis_title='Timestamp',
-            yaxis_title=selected_parameter.title()
+            yaxis_title=selected_parameter.title(),
+            showlegend=False
         )
         st.plotly_chart(fig_selected, use_container_width=True)
-        
-        # --- Insights ---
-        st.markdown("---")
-        st.subheader("Insights")
-        avg_temp = df["temperature"].mean()
-        avg_pressure = df["pressure"].mean()
-        avg_vibration = df["vibration"].mean()
-
-        st.info(
-            f"📌 Average Temperature: **{avg_temp:.2f}°C** | "
-            f"Average Pressure: **{avg_pressure:.2f} bar** | "
-            f"Average Vibration: **{avg_vibration:.2f}**"
-        )
 
 # ============================================================
-# TAB 2: DATABASE
+# TAB 2: DATABASE (Expander)
 # ============================================================
 with tab2:
     st.subheader("Database Viewer")
-    if df.empty:
-        st.warning("No records in database.")
-    else:
-        st.dataframe(df, use_container_width=True, height=500)
+    with st.expander("Click to view raw data"):
+        if df.empty:
+            st.warning("No records in database.")
+        else:
+            st.dataframe(df, use_container_width=True, height=500)
 
-        # CSV Download
-        csv = df.to_csv().encode("utf-8")
-        st.download_button(
-            "⬇️ Download CSV",
-            csv,
-            "air_compressor_data.csv",
-            "text/csv",
-            key="download-csv"
-        )
+            # CSV Download
+            csv = df.to_csv().encode("utf-8")
+            st.download_button(
+                "⬇️ Download CSV",
+                csv,
+                "air_compressor_data.csv",
+                "text/csv",
+                key="download-csv"
+            )
 
 # ============================================================
 # AUTO REFRESH LOGIC
