@@ -46,6 +46,28 @@ def get_live_data():
         st.error(f"Error fetching data: {e}")
         return pd.DataFrame()
 
+def get_historical_data(start_time):
+    try:
+        response = (
+            supabase_client.table("air_compressor")
+            .select("*")
+            .gte("timestamp", start_time.isoformat())
+            .order("timestamp", desc=True)
+            .execute()
+        )
+        data = response.data
+        if not data:
+            return pd.DataFrame()
+        
+        df = pd.DataFrame(data)
+        ist = pytz.timezone('Asia/Kolkata')
+        df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.tz_convert(ist)
+        df = df.set_index("timestamp").sort_index()
+        return df
+    except Exception as e:
+        st.error(f"Error fetching historical data: {e}")
+        return pd.DataFrame()
+
 def get_status_color(value, param_name):
     if param_name == 'temperature':
         if value > 80: return "#ff4b4b"
@@ -99,11 +121,12 @@ def create_chart(df, param_name, title, color, warn_thresh=None, crit_thresh=Non
 # --- Main App Logic ---
 st.title("Air Compressor Monitoring Dashboard ⚙️")
 
-with st.sidebar:
-    st.header("Navigation")
-    app_mode = st.radio("Choose a page", ["Dashboard", "Database"])
+tab1, tab2, tab3 = st.tabs(["📊 Live Dashboard", "📅 Historical Analysis", "📂 Database"])
 
-if app_mode == "Dashboard":
+# ============================================================
+# TAB 1: LIVE DASHBOARD
+# ============================================================
+with tab1:
     live_placeholder = st.empty()
     while True:
         live_df = get_live_data()
@@ -127,26 +150,96 @@ if app_mode == "Dashboard":
 
                 st.markdown("---")
                 
-                st.subheader("Critical Parameter Trends")
+                st.subheader("Historical Trends (Last 100 Entries)")
                 
                 chart_col1, chart_col2, chart_col3 = st.columns([0.75, 0.75, 0.75])
 
                 with chart_col1:
                     st.markdown("##### Temperature Trend")
-                    fig_temp = create_chart(live_df, 'temperature','#00BFFF', 60, 80, height=350)
+                    fig_temp = create_chart(live_df, 'temperature', 'Temperature Trend', '#00BFFF', 60, 80, height=350)
                     st.plotly_chart(fig_temp, use_container_width=True, key=f"live_temp_{time.time()}")
                 with chart_col2:
                     st.markdown("##### Pressure Trend")
-                    fig_pressure = create_chart(live_df, 'pressure', '#88d8b0', 9, 12, height=350)
+                    fig_pressure = create_chart(live_df, 'pressure', 'Pressure Trend', '#88d8b0', 9, 12, height=350)
                     st.plotly_chart(fig_pressure, use_container_width=True, key=f"live_pressure_{time.time()}")
                 with chart_col3:
                     st.markdown("##### Vibration Trend")
-                    fig_vibration = create_chart(live_df, 'vibration', '#6a5acd', 3, 5, height=350)
+                    fig_vibration = create_chart(live_df, 'vibration', 'Vibration Trend', '#6a5acd', 3, 5, height=350)
                     st.plotly_chart(fig_vibration, use_container_width=True, key=f"live_vibration_{time.time()}")
         
         time.sleep(5)
 
-elif app_mode == "Database":
+# ============================================================
+# TAB 2: HISTORICAL ANALYSIS
+# ============================================================
+with tab2:
+    st.subheader("Analyze Historical Data")
+    
+    intervals = {
+        "5 minutes": 5,
+        "15 minutes": 15,
+        "30 minutes": 30,
+        "1 hour": 60,
+        "3 hours": 180,
+        "1 day": 1440,
+        "1 week": 10080,
+        "1 month": 43200
+    }
+
+    selected_interval = st.selectbox(
+        "Select Time Frame:",
+        list(intervals.keys()),
+        key='time_interval_selectbox'
+    )
+    
+    selected_param = st.selectbox(
+        "Select Parameter:",
+        ['temperature', 'pressure', 'vibration'],
+        key='historical_param_selectbox'
+    )
+    
+    now_utc = datetime.now(pytz.utc)
+    start_time_utc = now_utc - timedelta(minutes=intervals[selected_interval])
+    
+    historical_df = get_historical_data(start_time_utc)
+    
+    if historical_df.empty:
+        st.warning("No data found for the selected time frame.")
+    else:
+        st.markdown("---")
+        
+        st.subheader(f"Historical Trend for {selected_param.title()}")
+        
+        fig_historical = create_chart(
+            historical_df, 
+            selected_param, 
+            f"{selected_param.title()} Trend ({selected_interval})", 
+            '#ffcc00', 
+            warn_thresh=60 if selected_param == 'temperature' else 9 if selected_param == 'pressure' else 3,
+            crit_thresh=80 if selected_param == 'temperature' else 12 if selected_param == 'pressure' else 5,
+            height=350
+        )
+        st.plotly_chart(fig_historical, use_container_width=True)
+        
+        st.markdown("---")
+        
+        st.subheader("Historical Data Table")
+        filtered_df = historical_df[[selected_param]]
+        st.dataframe(filtered_df, use_container_width=True)
+        
+        csv = filtered_df.to_csv().encode('utf-8')
+        st.download_button(
+            "⬇️ Download Filtered CSV",
+            csv,
+            f"{selected_param}_data_{selected_interval}.csv",
+            "text/csv",
+            key='historical_download'
+        )
+
+# ============================================================
+# TAB 3: RAW DATABASE
+# ============================================================
+with tab3:
     st.subheader("Raw Database Data")
     all_live_df = get_live_data()
     if all_live_df.empty:
