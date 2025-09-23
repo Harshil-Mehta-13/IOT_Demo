@@ -46,7 +46,6 @@ def get_live_data():
         st.error(f"Error fetching data: {e}")
         return pd.DataFrame()
 
-@st.cache_data(ttl=300) # Cached for 5 minutes
 def get_historical_data(start_time):
     try:
         response = (
@@ -121,7 +120,6 @@ def create_chart(df, param_name, title, color, warn_thresh=None, crit_thresh=Non
 
 # --- Main App Logic ---
 st.title("Air Compressor Monitoring Dashboard ⚙️")
-st.markdown("A real-time dashboard for tracking key operational metrics.")
 
 with st.sidebar:
     st.header("Navigation")
@@ -157,23 +155,23 @@ if app_mode == "Live Dashboard":
 
                 with chart_col1:
                     st.markdown("##### Temperature Trend")
-                    fig_temp = create_chart(live_df, 'temperature', 'Temperature Trend', '#00BFFF', 60, 80, height=350)
+                    fig_temp = create_chart(live_df, 'temperature', '', '#00BFFF', 60, 80, height=350)
                     st.plotly_chart(fig_temp, use_container_width=True, key=f"live_temp_{time.time()}")
                 with chart_col2:
                     st.markdown("##### Pressure Trend")
-                    fig_pressure = create_chart(live_df, 'pressure', 'Pressure Trend', '#88d8b0', 9, 12, height=350)
+                    fig_pressure = create_chart(live_df, 'pressure', '', '#88d8b0', 9, 12, height=350)
                     st.plotly_chart(fig_pressure, use_container_width=True, key=f"live_pressure_{time.time()}")
                 with chart_col3:
                     st.markdown("##### Vibration Trend")
-                    fig_vibration = create_chart(live_df, 'vibration', 'Vibration Trend', '#6a5acd', 3, 5, height=350)
+                    fig_vibration = create_chart(live_df, 'vibration', '', '#6a5acd', 3, 5, height=350)
                     st.plotly_chart(fig_vibration, use_container_width=True, key=f"live_vibration_{time.time()}")
-        
+                st.markdown("<br>" * 5, unsafe_allow_html=True)
+                
         time.sleep(5)
 
 elif app_mode == "Database":
     st.subheader("Raw Database Data")
     
-    # Filters in a single row
     col_start, col_end, col_param = st.columns(3)
     with col_start:
         start_date = st.date_input("Start Date", value=datetime.now().date() - timedelta(days=7))
@@ -183,12 +181,10 @@ elif app_mode == "Database":
         parameters = ['temperature', 'pressure', 'vibration']
         selected_params = st.multiselect("Select Parameter(s) to Filter:", options=parameters, default=parameters)
     
-    # Query data within the selected date range
     start_dt = datetime.combine(start_date, datetime.min.time())
     end_dt = datetime.combine(end_date, datetime.max.time())
     
     try:
-        # Convert to UTC before querying
         ist = pytz.timezone('Asia/Kolkata')
         start_dt_utc = ist.localize(start_dt, is_dst=None).astimezone(pytz.utc)
         end_dt_utc = ist.localize(end_dt, is_dst=None).astimezone(pytz.utc)
@@ -199,21 +195,16 @@ elif app_mode == "Database":
         if filtered_df.empty:
             st.warning("No records found for the selected date range.")
         else:
-            # Filter by parameter
             if selected_params:
-                # Always include the timestamp column
                 cols_to_display = ['timestamp'] + selected_params
                 filtered_df = filtered_df[cols_to_display]
             else:
-                # If no parameters are selected, show a message or the full table
                 st.warning("Please select at least one parameter.")
                 filtered_df = pd.DataFrame()
 
-            # Display filtered data
             if not filtered_df.empty:
                 st.dataframe(filtered_df, use_container_width=True, height=500)
                 
-                # Download button for filtered data
                 csv = filtered_df.to_csv().encode('utf-8')
                 st.download_button(
                     "⬇️ Download Filtered CSV",
