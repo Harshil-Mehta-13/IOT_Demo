@@ -2,8 +2,8 @@ import streamlit as st
 import pandas as pd
 from supabase import create_client, Client
 import time
-import plotly.express as px
 import plotly.graph_objects as go
+import plotly.express as px
 
 # --- Page Config ---
 st.set_page_config(
@@ -44,63 +44,45 @@ def get_sensor_data():
         st.error(f"Error fetching data: {e}")
         return pd.DataFrame()
 
-# --- Helper Functions ---
+# --- Helper Functions for Status and Styling ---
 def get_status_color(value, param_name):
     if param_name == 'temperature':
-        if value > 80:
-            return "#ff4b4b" # red
-        elif value > 60:
-            return "#ffcc00" # orange
-        else:
-            return "#2ec27e" # green
+        if value > 80: return "#ff4b4b"
+        elif value > 60: return "#ffcc00"
+        else: return "#2ec27e"
     elif param_name == 'pressure':
-        if value > 12:
-            return "#ff4b4b"
-        elif value > 9:
-            return "#ffcc00"
-        else:
-            return "#2ec27e"
+        if value > 12: return "#ff4b4b"
+        elif value > 9: return "#ffcc00"
+        else: return "#2ec27e"
     elif param_name == 'vibration':
-        if value > 5:
-            return "#ff4b4b"
-        elif value > 3:
-            return "#ffcc00"
-        else:
-            return "#2ec27e"
+        if value > 5: return "#ff4b4b"
+        elif value > 3: return "#ffcc00"
+        else: return "#2ec27e"
     return "#2ec27e"
 
 def get_status_text(value, param_name):
     if param_name == 'temperature':
-        if value > 80:
-            return "Critical"
-        elif value > 60:
-            return "Warning"
-        else:
-            return "Normal"
+        if value > 80: return "Critical"
+        elif value > 60: return "Warning"
+        else: return "Normal"
     elif param_name == 'pressure':
-        if value > 12:
-            return "Critical"
-        elif value > 9:
-            return "Warning"
-        else:
-            return "Normal"
+        if value > 12: return "Critical"
+        elif value > 9: return "Warning"
+        else: return "Normal"
     elif param_name == 'vibration':
-        if value > 5:
-            return "Critical"
-        elif value > 3:
-            return "Warning"
-        else:
-            return "Normal"
+        if value > 5: return "Critical"
+        elif value > 3: return "Warning"
+        else: return "Normal"
     return "Normal"
 
 # --- Main App Logic ---
 st.title("Air Compressor Monitoring Dashboard ⚙️")
-st.markdown("A real-time dashboard for tracking key operational metrics of an air compressor.")
+st.markdown("A real-time dashboard for tracking key operational metrics.")
 
 # Fetch the data
 df = get_sensor_data()
 
-# --- Tabs ---
+# --- Tabs for Dashboard and Database ---
 tab1, tab2 = st.tabs(["📊 Dashboard", "📂 Database"])
 
 with tab1:
@@ -115,13 +97,8 @@ with tab1:
 
         with col1:
             st.markdown(f"""
-                <div style="
-                    background-color: #f0f2f6;
-                    border-radius: 10px;
-                    padding: 20px;
-                    text-align: center;
-                ">
-                    <p style="font-size: 1.2em; font-weight: bold;">🌡️ Temperature (°C)</p>
+                <div style="background-color: #262730; border-radius: 10px; padding: 20px; text-align: center;">
+                    <p style="font-size: 1.2em; font-weight: bold; color: #a4a4a4;">🌡️ Temperature (°C)</p>
                     <p style="font-size: 2.5em; font-weight: bold; color: {get_status_color(latest['temperature'], 'temperature')};">{latest['temperature']:.2f}</p>
                     <p style="color: #666; font-size: 1em;">Status: {get_status_text(latest['temperature'], 'temperature')}</p>
                 </div>
@@ -129,13 +106,8 @@ with tab1:
             
         with col2:
             st.markdown(f"""
-                <div style="
-                    background-color: #f0f2f6;
-                    border-radius: 10px;
-                    padding: 20px;
-                    text-align: center;
-                ">
-                    <p style="font-size: 1.2em; font-weight: bold;">PSI Pressure (bar)</p>
+                <div style="background-color: #262730; border-radius: 10px; padding: 20px; text-align: center;">
+                    <p style="font-size: 1.2em; font-weight: bold; color: #a4a4a4;">PSI Pressure (bar)</p>
                     <p style="font-size: 2.5em; font-weight: bold; color: {get_status_color(latest['pressure'], 'pressure')};">{latest['pressure']:.2f}</p>
                     <p style="color: #666; font-size: 1em;">Status: {get_status_text(latest['pressure'], 'pressure')}</p>
                 </div>
@@ -143,13 +115,8 @@ with tab1:
         
         with col3:
             st.markdown(f"""
-                <div style="
-                    background-color: #f0f2f6;
-                    border-radius: 10px;
-                    padding: 20px;
-                    text-align: center;
-                ">
-                    <p style="font-size: 1.2em; font-weight: bold;">📳 Vibration</p>
+                <div style="background-color: #262730; border-radius: 10px; padding: 20px; text-align: center;">
+                    <p style="font-size: 1.2em; font-weight: bold; color: #a4a4a4;">📳 Vibration</p>
                     <p style="font-size: 2.5em; font-weight: bold; color: {get_status_color(latest['vibration'], 'vibration')};">{latest['vibration']:.2f}</p>
                     <p style="color: #666; font-size: 1em;">Status: {get_status_text(latest['vibration'], 'vibration')}</p>
                 </div>
@@ -157,14 +124,40 @@ with tab1:
 
         st.markdown("---")
 
-        # --- Trend Chart ---
+        # --- Separate Charts for Each Parameter ---
         st.subheader("Historical Trends")
-        
-        df_melt = df.reset_index().melt('timestamp', var_name='Parameter', value_name='Value')
-        fig = px.line(df_melt, x='timestamp', y='Value', color='Parameter',
-                      title='Combined Sensor Trends')
-        
-        st.plotly_chart(fig, use_container_width=True)
+        chart_col1, chart_col2 = st.columns(2)
+
+        # Temperature Chart
+        with chart_col1:
+            st.markdown("##### Temperature Trend")
+            fig_temp = go.Figure()
+            fig_temp.add_trace(go.Scatter(x=df.index, y=df['temperature'], mode='lines', name='Temperature'))
+            fig_temp.add_hline(y=60, line_dash="dash", line_color="orange", annotation_text="Warning")
+            fig_temp.add_hline(y=80, line_dash="dash", line_color="red", annotation_text="Critical")
+            fig_temp.update_layout(height=350, margin={"l": 0, "r": 0, "t": 30, "b": 0})
+            st.plotly_chart(fig_temp, use_container_width=True)
+
+        # Pressure Chart
+        with chart_col2:
+            st.markdown("##### Pressure Trend")
+            fig_pressure = go.Figure()
+            fig_pressure.add_trace(go.Scatter(x=df.index, y=df['pressure'], mode='lines', name='Pressure', line_color='#88d8b0'))
+            fig_pressure.add_hline(y=9, line_dash="dash", line_color="orange", annotation_text="Warning")
+            fig_pressure.add_hline(y=12, line_dash="dash", line_color="red", annotation_text="Critical")
+            fig_pressure.update_layout(height=350, margin={"l": 0, "r": 0, "t": 30, "b": 0})
+            st.plotly_chart(fig_pressure, use_container_width=True)
+
+        # Vibration Chart (placed below to fit on one screen)
+        st.markdown("---")
+        st.markdown("##### Vibration Trend")
+        fig_vibration = go.Figure()
+        fig_vibration.add_trace(go.Scatter(x=df.index, y=df['vibration'], mode='lines', name='Vibration', line_color='#6a5acd'))
+        fig_vibration.add_hline(y=3, line_dash="dash", line_color="orange", annotation_text="Warning")
+        fig_vibration.add_hline(y=5, line_dash="dash", line_color="red", annotation_text="Critical")
+        fig_vibration.update_layout(height=350, margin={"l": 0, "r": 0, "t": 30, "b": 0})
+        st.plotly_chart(fig_vibration, use_container_width=True)
+
 
 with tab2:
     st.subheader("Raw Database Data")
@@ -173,7 +166,6 @@ with tab2:
     else:
         st.dataframe(df, use_container_width=True, height=500)
         
-        # Download button
         csv = df.to_csv().encode('utf-8')
         st.download_button(
             "⬇️ Download CSV",
@@ -182,7 +174,7 @@ with tab2:
             "text/csv",
             key='download-csv'
         )
-
+        
 # --- Auto Refresh ---
 time.sleep(5)
 st.rerun()
