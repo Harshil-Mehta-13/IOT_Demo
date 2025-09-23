@@ -47,28 +47,6 @@ def get_live_data():
         st.error(f"Error fetching data: {e}")
         return pd.DataFrame()
 
-def get_historical_data(start_time):
-    try:
-        response = (
-            supabase_client.table("air_compressor")
-            .select("*")
-            .gte("timestamp", start_time.isoformat())
-            .order("timestamp", desc=True)
-            .execute()
-        )
-        data = response.data
-        if not data:
-            return pd.DataFrame()
-        
-        df = pd.DataFrame(data)
-        ist = pytz.timezone('Asia/Kolkata')
-        df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.tz_convert(ist)
-        df = df.set_index("timestamp").sort_index()
-        return df
-    except Exception as e:
-        st.error(f"Error fetching historical data: {e}")
-        return pd.DataFrame()
-
 def get_status_color(value, param_name):
     if param_name == 'temperature':
         if value > 80: return "#ff4b4b"
@@ -123,12 +101,11 @@ def create_chart(df, param_name, title, color, warn_thresh=None, crit_thresh=Non
 st.title("Air Compressor Monitoring Dashboard ⚙️")
 st.markdown("A real-time dashboard for tracking key operational metrics.")
 
-tab1, tab2, tab3 = st.tabs(["📊 Live Dashboard", "📅 Historical Analysis", "📂 Database"])
+with st.sidebar:
+    st.header("Navigation")
+    app_mode = st.radio("Choose a page", ["Live Dashboard", "Database"])
 
-# ============================================================
-# TAB 1: LIVE DASHBOARD
-# ============================================================
-with tab1:
+if app_mode == "Live Dashboard":
     live_df = get_live_data()
     if live_df.empty:
         st.warning("No data available. Please check your ESP32 connection.")
@@ -166,77 +143,10 @@ with tab1:
             fig_vibration = create_chart(live_df, 'vibration', 'Vibration Trend', '#6a5acd', 3, 5, height=350)
             st.plotly_chart(fig_vibration, use_container_width=True)
 
-# ============================================================
-# TAB 2: HISTORICAL ANALYSIS
-# ============================================================
-with tab2:
-    st.subheader("Analyze Historical Data")
-    
-    intervals = {
-        "5 minutes": 5,
-        "15 minutes": 15,
-        "30 minutes": 30,
-        "1 hour": 60,
-        "3 hours": 180,
-        "1 day": 1440,
-        "1 week": 10080,
-        "1 month": 43200
-    }
+    time.sleep(5)
+    st.rerun()
 
-    selected_interval = st.selectbox(
-        "Select Time Frame:",
-        list(intervals.keys()),
-        key='time_interval_selectbox'
-    )
-    
-    selected_param = st.selectbox(
-        "Select Parameter:",
-        ['temperature', 'pressure', 'vibration'],
-        key='historical_param_selectbox'
-    )
-    
-    now_utc = datetime.now(pytz.utc)
-    start_time_utc = now_utc - timedelta(minutes=intervals[selected_interval])
-    
-    historical_df = get_historical_data(start_time_utc)
-    
-    if historical_df.empty:
-        st.warning("No data found for the selected time frame.")
-    else:
-        st.markdown("---")
-        
-        st.subheader(f"Historical Trend for {selected_param.title()}")
-        
-        fig_historical = create_chart(
-            historical_df, 
-            selected_param, 
-            f"{selected_param.title()} Trend ({selected_interval})", 
-            '#ffcc00', 
-            warn_thresh=60 if selected_param == 'temperature' else 9 if selected_param == 'pressure' else 3,
-            crit_thresh=80 if selected_param == 'temperature' else 12 if selected_param == 'pressure' else 5,
-            height=350
-        )
-        st.plotly_chart(fig_historical, use_container_width=True)
-        
-        st.markdown("---")
-        
-        st.subheader("Historical Data Table")
-        filtered_df = historical_df[[selected_param]]
-        st.dataframe(filtered_df, use_container_width=True)
-        
-        csv = filtered_df.to_csv().encode('utf-8')
-        st.download_button(
-            "⬇️ Download Filtered CSV",
-            csv,
-            f"{selected_param}_data_{selected_interval}.csv",
-            "text/csv",
-            key='historical_download'
-        )
-
-# ============================================================
-# TAB 3: RAW DATABASE
-# ============================================================
-with tab3:
+elif app_mode == "Database":
     st.subheader("Raw Database Data")
     all_live_df = get_live_data()
     if all_live_df.empty:
