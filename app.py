@@ -123,7 +123,6 @@ def create_chart(df, param_name, title, color, warn_thresh=None, crit_thresh=Non
 st.title("Air Compressor Monitoring Dashboard ⚙️")
 st.markdown("A real-time dashboard for tracking key operational metrics.")
 
-# Define tabs outside the main rendering loop
 tab1, tab2, tab3 = st.tabs(["📊 Live Dashboard", "📅 Historical Analysis", "📂 Database"])
 
 # ============================================================
@@ -199,7 +198,6 @@ with tab2:
     now_utc = datetime.now(pytz.utc)
     start_time_utc = now_utc - timedelta(minutes=intervals[selected_interval])
     
-    # This data fetching is not cached, so it runs on each user selection
     historical_df = get_historical_data(start_time_utc)
     
     if historical_df.empty:
@@ -223,9 +221,11 @@ with tab2:
         st.markdown("---")
         
         st.subheader("Historical Data Table")
-        st.dataframe(historical_df, use_container_width=True)
+        # Filter the DataFrame to include only the selected parameter
+        filtered_df = historical_df[[selected_param]]
+        st.dataframe(filtered_df, use_container_width=True)
         
-        csv = historical_df.to_csv().encode('utf-8')
+        csv = filtered_df.to_csv().encode('utf-8')
         st.download_button(
             "⬇️ Download Filtered CSV",
             csv,
