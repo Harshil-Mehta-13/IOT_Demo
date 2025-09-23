@@ -145,7 +145,7 @@ while True:
                 st.markdown("---")
                 
                 # --- Charts in a 3-column layout to prevent scrolling ---
-                st.subheader("Historical Trends")
+                st.subheader("Critical Parameter Trends")
                 
                 chart_col1, chart_col2, chart_col3 = st.columns(3)
 
