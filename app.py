@@ -109,26 +109,27 @@ while True:
                     f"Pressure: **{avg_pressure:.2f} bar**, "
                     f"Vibration: **{avg_vibration:.2f}**"
                 )
-
-        # ============================================================
-        # TAB 2: DATABASE
-        # ============================================================
-        with tab2:
-            st.markdown("## Database Viewer")
-            if df.empty:
-                st.warning("No records in database.")
-            else:
-                st.dataframe(df, use_container_width=True, height=500)
-
-                # CSV Download
-                csv = df.to_csv().encode("utf-8")
-                st.download_button(
-                    "⬇️ Download CSV",
-                    csv,
-                    "air_compressor_data.csv",
-                    "text/csv",
-                    key="download-csv"
-                )
     
     # Wait for 5 seconds before fetching new data
     time.sleep(5)
+
+# ============================================================
+# TAB 2: DATABASE - Moved outside the loop
+# ============================================================
+with tab2:
+    st.markdown("## Database Viewer")
+    df_viewer = get_sensor_data()
+    if df_viewer.empty:
+        st.warning("No records in database.")
+    else:
+        st.dataframe(df_viewer, use_container_width=True, height=500)
+
+        # CSV Download
+        csv = df_viewer.to_csv().encode("utf-8")
+        st.download_button(
+            "⬇️ Download CSV",
+            csv,
+            "air_compressor_data.csv",
+            "text/csv",
+            key="download-csv"
+        )
