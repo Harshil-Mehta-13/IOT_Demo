@@ -87,69 +87,33 @@ while True:
     df = get_sensor_data()
 
     with dashboard_placeholder.container():
-        # --- Tabs with custom styling ---
-        tab_titles = ["📊 Dashboard", "📂 Database"]
-        selected_tab = st.radio("Select Tab", options=tab_titles, horizontal=True)
+        tab1, tab2 = st.tabs(["📊 Dashboard", "📂 Database"])
 
-        if selected_tab == "📊 Dashboard":
+        with tab1:
             if df.empty:
                 st.warning("No data available. Please check your ESP32 connection.")
             else:
                 latest = df.iloc[-1]
                 
                 # --- KPI Cards with spacing ---
+                st.subheader("Latest Readings & Status")
                 kpi_col1, kpi_col2, kpi_col3 = st.columns(3)
 
                 with kpi_col1:
-                    st.markdown(f"""
-                        <div style="
-                            background-color: #262730;
-                            border-radius: 10px;
-                            padding: 10px;
-                            text-align: center;
-                            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-                            margin-right: 10px;
-                        ">
-                            <p style="font-size: 1em; font-weight: bold; color: #a4a4a4;">🌡️ Temp (°C)</p>
-                            <p style="font-size: 1.5em; font-weight: bold; color: {get_status_color(latest['temperature'], 'temperature')};">{latest['temperature']:.2f}</p>
-                            <p style="color: #666; font-size: 0.8em;">Status: {get_status_text(latest['temperature'], 'temperature')}</p>
-                        </div>
-                    """, unsafe_allow_html=True)
+                    st.metric(label="🌡️ Temperature (°C)", value=f"{latest['temperature']:.2f}")
+                    st.markdown(f"**Status:** <span style='color: {get_status_color(latest['temperature'], 'temperature')};'>{get_status_text(latest['temperature'], 'temperature')}</span>", unsafe_allow_html=True)
                     
                 with kpi_col2:
-                    st.markdown(f"""
-                        <div style="
-                            background-color: #262730;
-                            border-radius: 10px;
-                            padding: 10px;
-                            text-align: center;
-                            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-                            margin-right: 10px;
-                        ">
-                            <p style="font-size: 1em; font-weight: bold; color: #a4a4a4;">PSI Pressure (bar)</p>
-                            <p style="font-size: 1.5em; font-weight: bold; color: {get_status_color(latest['pressure'], 'pressure')};">{latest['pressure']:.2f}</p>
-                            <p style="color: #666; font-size: 0.8em;">Status: {get_status_text(latest['pressure'], 'pressure')}</p>
-                        </div>
-                    """, unsafe_allow_html=True)
+                    st.metric(label="PSI Pressure (bar)", value=f"{latest['pressure']:.2f}")
+                    st.markdown(f"**Status:** <span style='color: {get_status_color(latest['pressure'], 'pressure')};'>{get_status_text(latest['pressure'], 'pressure')}</span>", unsafe_allow_html=True)
                 
                 with kpi_col3:
-                    st.markdown(f"""
-                        <div style="
-                            background-color: #262730;
-                            border-radius: 10px;
-                            padding: 10px;
-                            text-align: center;
-                            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-                        ">
-                            <p style="font-size: 1em; font-weight: bold; color: #a4a4a4;">📳 Vibration</p>
-                            <p style="font-size: 1.5em; font-weight: bold; color: {get_status_color(latest['vibration'], 'vibration')};">{latest['vibration']:.2f}</p>
-                            <p style="color: #666; font-size: 0.8em;">Status: {get_status_text(latest['vibration'], 'vibration')}</p>
-                        </div>
-                    """, unsafe_allow_html=True)
+                    st.metric(label="📳 Vibration", value=f"{latest['vibration']:.2f}")
+                    st.markdown(f"**Status:** <span style='color: {get_status_color(latest['vibration'], 'vibration')};'>{get_status_text(latest['vibration'], 'vibration')}</span>", unsafe_allow_html=True)
 
                 st.markdown("---")
                 
-                # --- Charts with spacing ---
+                # --- Charts in a 3-column layout to prevent scrolling ---
                 st.subheader("Historical Trends")
                 
                 chart_col1, chart_col2, chart_col3 = st.columns(3)
@@ -181,7 +145,7 @@ while True:
                     fig_vibration.update_layout(height=350, margin={"l": 10, "r": 10, "t": 30, "b": 0})
                     st.plotly_chart(fig_vibration, use_container_width=True, key=f"vibration_chart_{time.time()}")
             
-        elif selected_tab == "📂 Database":
+        with tab2:
             st.subheader("Raw Database Data")
             if df.empty:
                 st.warning("No records in database.")
