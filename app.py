@@ -146,7 +146,7 @@ while True:
                     fig_temp.add_hline(y=60, line_dash="dash", line_color="orange", annotation_text="Warning")
                     fig_temp.add_hline(y=80, line_dash="dash", line_color="red", annotation_text="Critical")
                     fig_temp.update_layout(height=350, margin={"l": 0, "r": 0, "t": 30, "b": 0})
-                    st.plotly_chart(fig_temp, use_container_width=True)
+                    st.plotly_chart(fig_temp, use_container_width=True, key="temp_chart")
 
                 # Pressure Chart
                 with chart_col2:
@@ -156,7 +156,7 @@ while True:
                     fig_pressure.add_hline(y=9, line_dash="dash", line_color="orange", annotation_text="Warning")
                     fig_pressure.add_hline(y=12, line_dash="dash", line_color="red", annotation_text="Critical")
                     fig_pressure.update_layout(height=350, margin={"l": 0, "r": 0, "t": 30, "b": 0})
-                    st.plotly_chart(fig_pressure, use_container_width=True)
+                    st.plotly_chart(fig_pressure, use_container_width=True, key="pressure_chart")
 
                 st.markdown("---")
                 # Vibration Chart (placed below to fit on one screen)
@@ -166,25 +166,25 @@ while True:
                 fig_vibration.add_hline(y=3, line_dash="dash", line_color="orange", annotation_text="Warning")
                 fig_vibration.add_hline(y=5, line_dash="dash", line_color="red", annotation_text="Critical")
                 fig_vibration.update_layout(height=350, margin={"l": 0, "r": 0, "t": 30, "b": 0})
-                st.plotly_chart(fig_vibration, use_container_width=True)
+                st.plotly_chart(fig_vibration, use_container_width=True, key="vibration_chart")
 
 
-with tab2:
-    st.subheader("Raw Database Data")
-    if df.empty:
-        st.warning("No records in database.")
-    else:
-        st.dataframe(df, use_container_width=True, height=500)
+        with tab2:
+            st.subheader("Raw Database Data")
+            if df.empty:
+                st.warning("No records in database.")
+            else:
+                st.dataframe(df, use_container_width=True, height=500)
+                
+                csv = df.to_csv().encode('utf-8')
+                st.download_button(
+                    "⬇️ Download CSV",
+                    csv,
+                    "air_compressor_data.csv",
+                    "text/csv",
+                    key='download-csv'
+                )
         
-        csv = df.to_csv().encode('utf-8')
-        st.download_button(
-            "⬇️ Download CSV",
-            csv,
-            "air_compressor_data.csv",
-            "text/csv",
-            key='download-csv'
-        )
-        
-# --- Auto Refresh ---
-time.sleep(5)
-st.rerun()
+    # --- Auto Refresh ---
+    time.sleep(5)
+    st.rerun()
