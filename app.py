@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from supabase import create_client, Client
 import time
+import plotly.express as px
 
 # --- Page Config ---
 st.set_page_config(
@@ -43,88 +44,106 @@ def get_sensor_data():
         return pd.DataFrame()
 
 # --- Main App Logic ---
-# The infinite loop that drives the live updates
-while True:
-    # Fetch the data once at the start of the loop
-    df = get_sensor_data()
+st.title("Air Compressor Monitoring ⚙️")
 
-    # --- Tabs ---
-    tab1, tab2 = st.tabs(["📊 Dashboard", "📂 Database"])
+# Fetch the data at the start of the script run
+df = get_sensor_data()
 
-    # ============================================================
-    # TAB 1: DASHBOARD
-    # ============================================================
-    with tab1:
-        st.markdown("## Air Compressor Monitoring ⚙️")
+# A list of parameters to display
+parameters = ['temperature', 'pressure', 'vibration']
 
-        if df.empty:
-            st.warning("No data available. Waiting for ESP32 to push...")
-        else:
-            latest = df.iloc[-1]
+# --- Sidebar for controls ---
+with st.sidebar:
+    st.header("Dashboard Controls")
+    selected_parameter = st.selectbox(
+        'Select a parameter to view:',
+        options=parameters,
+        key='parameter_selectbox'
+    )
+    st.info("The dashboard auto-refreshes every 5 seconds.")
 
-            # --- KPI Metrics ---
-            st.markdown("### Latest Readings")
-            kpi1, kpi2, kpi3 = st.columns(3)
+# --- Tabs ---
+tab1, tab2 = st.tabs(["📊 Dashboard", "📂 Database"])
 
-            # Temperature KPI
-            temp_color = "🔴" if latest["temperature"] > 80 else ("🟠" if latest["temperature"] > 60 else "🟢")
-            kpi1.metric("Temperature (°C)", f"{latest['temperature']:.2f}", help="Real-time temperature")
-            kpi1.markdown(f"{temp_color} Status")
+# ============================================================
+# TAB 1: DASHBOARD
+# ============================================================
+with tab1:
+    if df.empty:
+        st.warning("No data available. Waiting for ESP32 to push...")
+    else:
+        latest = df.iloc[-1]
 
-            # Pressure KPI
-            pressure_color = "🔴" if latest["pressure"] > 12 else ("🟠" if latest["pressure"] > 9 else "🟢")
-            kpi2.metric("Pressure (bar)", f"{latest['pressure']:.2f}")
-            kpi2.markdown(f"{pressure_color} Status")
+        # --- KPI Metrics ---
+        st.subheader("Latest Readings")
+        kpi1, kpi2, kpi3 = st.columns(3)
 
-            # Vibration KPI
-            vib_color = "🔴" if latest["vibration"] > 5 else ("🟠" if latest["vibration"] > 3 else "🟢")
-            kpi3.metric("Vibration", f"{latest['vibration']:.2f}")
-            kpi3.markdown(f"{vib_color} Status")
+        # Temperature KPI
+        kpi1.metric("Temperature (°C)", f"{latest['temperature']:.2f}")
 
-            # --- Charts ---
-            st.markdown("### Historical Trends")
-            c1, c2, c3 = st.columns(3)
+        # Pressure KPI
+        kpi2.metric("Pressure (bar)", f"{latest['pressure']:.2f}")
 
-            with c1:
-                st.line_chart(df[["temperature"]], use_container_width=True)
+        # Vibration KPI
+        kpi3.metric("Vibration", f"{latest['vibration']:.2f}")
 
-            with c2:
-                st.line_chart(df[["pressure"]], use_container_width=True)
+        # --- Charts ---
+        st.subheader("Real-Time Trends")
+        
+        # Plotly chart for all parameters
+        fig_all = px.line(df, 
+                        x=df.index, 
+                        y=parameters,
+                        labels={'value': 'Value', 'timestamp': 'Time'},
+                        title='All Sensor Parameters Over Time')
+        fig_all.update_layout(legend_title_text='Parameter')
+        st.plotly_chart(fig_all, use_container_width=True)
 
-            with c3:
-                st.line_chart(df[["vibration"]], use_container_width=True)
+        st.markdown("---")
+        
+        # Plotly chart for selected parameter
+        st.subheader(f"Historical Trend for {selected_parameter.title()}")
+        fig_selected = px.line(df, 
+                               x=df.index, 
+                               y=selected_parameter,
+                               labels={'value': selected_parameter.title(), 'timestamp': 'Time'})
+        st.plotly_chart(fig_selected, use_container_width=True)
+        
+        # --- Insights ---
+        st.markdown("---")
+        st.subheader("Insights")
+        avg_temp = df["temperature"].mean()
+        avg_pressure = df["pressure"].mean()
+        avg_vibration = df["vibration"].mean()
 
-            # --- Insights ---
-            st.markdown("### Insights")
-            avg_temp = df["temperature"].mean()
-            avg_pressure = df["pressure"].mean()
-            avg_vibration = df["vibration"].mean()
+        st.info(
+            f"📌 Average Temperature: **{avg_temp:.2f}°C** | "
+            f"Average Pressure: **{avg_pressure:.2f} bar** | "
+            f"Average Vibration: **{avg_vibration:.2f}**"
+        )
 
-            st.info(
-                f"📌 Average Temp: **{avg_temp:.2f}°C**, "
-                f"Pressure: **{avg_pressure:.2f} bar**, "
-                f"Vibration: **{avg_vibration:.2f}**"
-            )
+# ============================================================
+# TAB 2: DATABASE
+# ============================================================
+with tab2:
+    st.subheader("Database Viewer")
+    if df.empty:
+        st.warning("No records in database.")
+    else:
+        st.dataframe(df, use_container_width=True, height=500)
 
-    # ============================================================
-    # TAB 2: DATABASE
-    # ============================================================
-    with tab2:
-        st.markdown("## Database Viewer")
-        if df.empty:
-            st.warning("No records in database.")
-        else:
-            st.dataframe(df, use_container_width=True, height=500)
+        # CSV Download
+        csv = df.to_csv().encode("utf-8")
+        st.download_button(
+            "⬇️ Download CSV",
+            csv,
+            "air_compressor_data.csv",
+            "text/csv",
+            key="download-csv"
+        )
 
-            # CSV Download
-            csv = df.to_csv().encode("utf-8")
-            st.download_button(
-                "⬇️ Download CSV",
-                csv,
-                "air_compressor_data.csv",
-                "text/csv",
-                key="download-csv"
-            )
-    
-    # Wait for 5 seconds before fetching new data
-    time.sleep(5)
+# ============================================================
+# AUTO REFRESH LOGIC
+# ============================================================
+time.sleep(5)
+st.rerun()
