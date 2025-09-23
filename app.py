@@ -23,6 +23,7 @@ def init_connection():
 supabase_client = init_connection()
 
 # --- Helper Functions for Data Fetching and Styling ---
+@st.cache_data(ttl=5)
 def get_live_data():
     try:
         response = (
@@ -120,7 +121,6 @@ def create_chart(df, param_name, title, color, warn_thresh=None, crit_thresh=Non
 
 # --- Main App Logic ---
 st.title("Air Compressor Monitoring Dashboard ⚙️")
-st.markdown("A real-time dashboard for tracking key operational metrics.")
 
 with st.sidebar:
     st.header("Navigation")
@@ -171,17 +171,39 @@ if app_mode == "Live Dashboard":
 
 elif app_mode == "Database":
     st.subheader("Raw Database Data")
-    all_live_df = get_live_data()
-    if all_live_df.empty:
-        st.warning("No records in database.")
-    else:
-        st.dataframe(all_live_df, use_container_width=True, height=500)
+    
+    # Date filters
+    start_date = st.date_input("Start Date", value=datetime.now().date() - timedelta(days=7))
+    end_date = st.date_input("End Date", value=datetime.now().date())
+    
+    # Query data within the selected date range
+    start_dt = datetime.combine(start_date, datetime.min.time())
+    end_dt = datetime.combine(end_date, datetime.max.time())
+    
+    try:
+        # Convert to UTC before querying
+        ist = pytz.timezone('Asia/Kolkata')
+        start_dt_utc = ist.localize(start_dt, is_dst=None).astimezone(pytz.utc)
+        end_dt_utc = ist.localize(end_dt, is_dst=None).astimezone(pytz.utc)
         
-        csv = all_live_df.to_csv().encode('utf-8')
-        st.download_button(
-            "⬇️ Download All CSV",
-            csv,
-            "air_compressor_data.csv",
-            "text/csv",
-            key='all_download'
-        )
+        response = supabase_client.table("air_compressor").select("*").gte("timestamp", start_dt_utc.isoformat()).lte("timestamp", end_dt_utc.isoformat()).execute()
+        
+        filtered_df = pd.DataFrame(response.data)
+        if filtered_df.empty:
+            st.warning("No records found for the selected date range.")
+        else:
+            # Display filtered data
+            st.dataframe(filtered_df, use_container_width=True, height=500)
+            
+            # Download button for filtered data
+            csv = filtered_df.to_csv().encode('utf-8')
+            st.download_button(
+                "⬇️ Download Filtered CSV",
+                csv,
+                "filtered_data.csv",
+                "text/csv",
+                key='download_filtered'
+            )
+            
+    except Exception as e:
+        st.error(f"Error fetching data: {e}")
