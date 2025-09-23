@@ -81,7 +81,6 @@ def get_status_text(value, param_name):
 st.title("Air Compressor Monitoring Dashboard ⚙️")
 st.markdown("A real-time dashboard for tracking key operational metrics.")
 
-# Use a placeholder for the live-updating content
 dashboard_placeholder = st.empty()
 
 while True:
@@ -155,7 +154,7 @@ while True:
                     st.markdown("##### Temperature Trend")
                     fig_temp = go.Figure()
                     fig_temp.add_trace(go.Scatter(x=df.index, y=df['temperature'], mode='lines', name='Temperature'))
-                    fig_temp.add_hline(y=60, line_dash="dasah", line_color="orange", annotation_text="Warning")
+                    fig_temp.add_hline(y=60, line_dash="dash", line_color="orange", annotation_text="Warning")
                     fig_temp.add_hline(y=80, line_dash="dash", line_color="red", annotation_text="Critical")
                     fig_temp.update_layout(height=250, margin={"l": 0, "r": 0, "t": 30, "b": 0})
                     st.plotly_chart(fig_temp, use_container_width=True, key=f"temp_chart_{time.time()}")
