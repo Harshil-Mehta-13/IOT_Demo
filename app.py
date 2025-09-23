@@ -179,7 +179,7 @@ elif app_mode == "Database":
         end_date = st.date_input("End Date", value=datetime.now().date())
     with col_param:
         parameters = ['temperature', 'pressure', 'vibration']
-        selected_param = st.selectbox("Select Parameter to Filter:", options=['All'] + parameters)
+        selected_params = st.multiselect("Select Parameter(s) to Filter:", options=parameters, default=parameters)
     
     # Query data within the selected date range
     start_dt = datetime.combine(start_date, datetime.min.time())
@@ -198,21 +198,28 @@ elif app_mode == "Database":
             st.warning("No records found for the selected date range.")
         else:
             # Filter by parameter
-            if selected_param != 'All':
-                filtered_df = filtered_df[['timestamp', selected_param]]
+            if selected_params:
+                # Always include the timestamp column
+                cols_to_display = ['timestamp'] + selected_params
+                filtered_df = filtered_df[cols_to_display]
+            else:
+                # If no parameters are selected, show a message or the full table
+                st.warning("Please select at least one parameter.")
+                filtered_df = pd.DataFrame()
 
             # Display filtered data
-            st.dataframe(filtered_df, use_container_width=True, height=500)
-            
-            # Download button for filtered data
-            csv = filtered_df.to_csv().encode('utf-8')
-            st.download_button(
-                "⬇️ Download Filtered CSV",
-                csv,
-                "filtered_data.csv",
-                "text/csv",
-                key='download_filtered'
-            )
+            if not filtered_df.empty:
+                st.dataframe(filtered_df, use_container_width=True, height=500)
+                
+                # Download button for filtered data
+                csv = filtered_df.to_csv().encode('utf-8')
+                st.download_button(
+                    "⬇️ Download Filtered CSV",
+                    csv,
+                    "filtered_data.csv",
+                    "text/csv",
+                    key='download_filtered'
+                )
             
     except Exception as e:
         st.error(f"Error fetching data: {e}")
