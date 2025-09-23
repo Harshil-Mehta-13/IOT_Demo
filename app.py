@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 from supabase import create_client, Client
+import time
 
 # --- Page Config ---
 st.set_page_config(
@@ -49,57 +50,63 @@ tab1, tab2 = st.tabs(["📊 Dashboard", "📂 Database"])
 # ============================================================
 with tab1:
     st.markdown("## Air Compressor Monitoring ⚙️")
+    dashboard_container = st.empty()
 
-    df = get_sensor_data()
+    while True:
+        with dashboard_container.container():
+            df = get_sensor_data()
 
-    if df.empty:
-        st.warning("No data available. Waiting for ESP32 to push...")
-    else:
-        latest = df.iloc[-1]
+            if df.empty:
+                st.warning("No data available. Waiting for ESP32 to push...")
+            else:
+                latest = df.iloc[-1]
 
-        # --- KPI Metrics ---
-        st.markdown("### Latest Readings")
-        kpi1, kpi2, kpi3 = st.columns(3)
+                # --- KPI Metrics ---
+                st.markdown("### Latest Readings")
+                kpi1, kpi2, kpi3 = st.columns(3)
 
-        # Temperature KPI
-        temp_color = "🔴" if latest["temperature"] > 80 else ("🟠" if latest["temperature"] > 60 else "🟢")
-        kpi1.metric("Temperature (°C)", f"{latest['temperature']:.2f}", help="Real-time temperature")
-        kpi1.markdown(f"{temp_color} Status")
+                # Temperature KPI
+                temp_color = "🔴" if latest["temperature"] > 80 else ("🟠" if latest["temperature"] > 60 else "🟢")
+                kpi1.metric("Temperature (°C)", f"{latest['temperature']:.2f}", help="Real-time temperature")
+                kpi1.markdown(f"{temp_color} Status")
 
-        # Pressure KPI
-        pressure_color = "🔴" if latest["pressure"] > 12 else ("🟠" if latest["pressure"] > 9 else "🟢")
-        kpi2.metric("Pressure (bar)", f"{latest['pressure']:.2f}")
-        kpi2.markdown(f"{pressure_color} Status")
+                # Pressure KPI
+                pressure_color = "🔴" if latest["pressure"] > 12 else ("🟠" if latest["pressure"] > 9 else "🟢")
+                kpi2.metric("Pressure (bar)", f"{latest['pressure']:.2f}")
+                kpi2.markdown(f"{pressure_color} Status")
 
-        # Vibration KPI
-        vib_color = "🔴" if latest["vibration"] > 5 else ("🟠" if latest["vibration"] > 3 else "🟢")
-        kpi3.metric("Vibration", f"{latest['vibration']:.2f}")
-        kpi3.markdown(f"{vib_color} Status")
+                # Vibration KPI
+                vib_color = "🔴" if latest["vibration"] > 5 else ("🟠" if latest["vibration"] > 3 else "🟢")
+                kpi3.metric("Vibration", f"{latest['vibration']:.2f}")
+                kpi3.markdown(f"{vib_color} Status")
 
-        # --- Charts ---
-        st.markdown("### Historical Trends")
-        c1, c2, c3 = st.columns(3)
+                # --- Charts ---
+                st.markdown("### Historical Trends")
+                c1, c2, c3 = st.columns(3)
 
-        with c1:
-            st.line_chart(df[["temperature"]], use_container_width=True)
+                with c1:
+                    st.line_chart(df[["temperature"]], use_container_width=True)
 
-        with c2:
-            st.line_chart(df[["pressure"]], use_container_width=True)
+                with c2:
+                    st.line_chart(df[["pressure"]], use_container_width=True)
 
-        with c3:
-            st.line_chart(df[["vibration"]], use_container_width=True)
+                with c3:
+                    st.line_chart(df[["vibration"]], use_container_width=True)
 
-        # --- Insights ---
-        st.markdown("### Insights")
-        avg_temp = df["temperature"].mean()
-        avg_pressure = df["pressure"].mean()
-        avg_vibration = df["vibration"].mean()
+                # --- Insights ---
+                st.markdown("### Insights")
+                avg_temp = df["temperature"].mean()
+                avg_pressure = df["pressure"].mean()
+                avg_vibration = df["vibration"].mean()
 
-        st.info(
-            f"📌 Average Temp: **{avg_temp:.2f}°C**, "
-            f"Pressure: **{avg_pressure:.2f} bar**, "
-            f"Vibration: **{avg_vibration:.2f}**"
-        )
+                st.info(
+                    f"📌 Average Temp: **{avg_temp:.2f}°C**, "
+                    f"Pressure: **{avg_pressure:.2f} bar**, "
+                    f"Vibration: **{avg_vibration:.2f}**"
+                )
+        
+        time.sleep(5)
+
 
 # ============================================================
 # TAB 2: DATABASE
@@ -121,10 +128,3 @@ with tab2:
             "text/csv",
             key="download-csv"
         )
-
-# ============================================================
-# AUTO REFRESH
-# ============================================================
-import time
-time.sleep(5)
-st.rerun()
