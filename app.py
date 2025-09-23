@@ -13,6 +13,9 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# --- Main App Logic ---
+st.title("Air Compressor Monitoring Dashboard ⚙️")
+
 # --- Supabase Connection ---
 @st.cache_resource(ttl="30s")
 def init_connection():
@@ -96,9 +99,6 @@ def create_chart(df, param_name, title, color, warn_thresh=None, crit_thresh=Non
     )
     return fig
 
-# --- Main App Logic ---
-st.title("Air Compressor Monitoring Dashboard ⚙️")
-
 with st.sidebar:
     st.header("Navigation")
     app_mode = st.radio("Choose a page", ["Live Dashboard", "Database"])
@@ -112,44 +112,37 @@ if app_mode == "Live Dashboard":
                 st.warning("No data available. Please check your ESP32 connection.")
             else:
                 latest = live_df.iloc[-1]
+                
+                kpi_col1, kpi_col2, kpi_col3 = st.columns(3)
 
-                # --- Layout: KPI column on the left, charts on the right ---
-                main_col1, main_col2 = st.columns([1, 3])
-
-                with main_col1:
-                    st.subheader("Latest Readings & Status")
-                    
-                    # Temperature KPI
+                with kpi_col1:
                     st.metric(label="🌡️ Temp (°C)", value=f"{latest['temperature']:.2f}")
                     st.markdown(f"**Status:** <span style='color: {get_status_color(latest['temperature'], 'temperature')};'>{get_status_text(latest['temperature'], 'temperature')}</span>", unsafe_allow_html=True)
-                    st.markdown("---")
-                    
-                    # Pressure KPI
+                with kpi_col2:
                     st.metric(label="PSI Pressure (bar)", value=f"{latest['pressure']:.2f}")
                     st.markdown(f"**Status:** <span style='color: {get_status_color(latest['pressure'], 'pressure')};'>{get_status_text(latest['pressure'], 'pressure')}</span>", unsafe_allow_html=True)
-                    st.markdown("---")
-                    
-                    # Vibration KPI
+                with kpi_col3:
                     st.metric(label="📳 Vibration", value=f"{latest['vibration']:.2f}")
                     st.markdown(f"**Status:** <span style='color: {get_status_color(latest['vibration'], 'vibration')};'>{get_status_text(latest['vibration'], 'vibration')}</span>", unsafe_allow_html=True)
 
-                with main_col2:
-                    st.subheader("Historical Trends (Last 100 Entries)")
-                    
-                    # Arrange charts vertically
-                    st.markdown("##### Temperature Trend")
-                    fig_temp = create_chart(live_df, 'temperature', '', '#00BFFF', 60, 80, height=300)
-                    st.plotly_chart(fig_temp, use_container_width=True, key=f"live_temp_{time.time()}")
-                    
-                    st.markdown("##### Pressure Trend")
-                    fig_pressure = create_chart(live_df, 'pressure', '', '#88d8b0', 9, 12, height=300)
-                    st.plotly_chart(fig_pressure, use_container_width=True, key=f"live_pressure_{time.time()}")
-                    
-                    st.markdown("##### Vibration Trend")
-                    fig_vibration = create_chart(live_df, 'vibration', '', '#6a5acd', 3, 5, height=300)
-                    st.plotly_chart(fig_vibration, use_container_width=True, key=f"live_vibration_{time.time()}")
+                st.markdown("---")
+                
+                st.subheader("Critical Parameter Trends")
+                
+                chart_col1, chart_col2, chart_col3 = st.columns([0.75, 0.75, 0.75])
 
-                    st.markdown("<br>" * 5, unsafe_allow_html=True)
+                with chart_col1:
+                    st.markdown("##### Temperature Trend")
+                    fig_temp = create_chart(live_df, 'temperature', '', '#00BFFF', 60, 80, height=350)
+                    st.plotly_chart(fig_temp, use_container_width=True, key=f"live_temp_{time.time()}")
+                with chart_col2:
+                    st.markdown("##### Pressure Trend")
+                    fig_pressure = create_chart(live_df, 'pressure', '', '#88d8b0', 9, 12, height=350)
+                    st.plotly_chart(fig_pressure, use_container_width=True, key=f"live_pressure_{time.time()}")
+                with chart_col3:
+                    st.markdown("##### Vibration Trend")
+                    fig_vibration = create_chart(live_df, 'vibration', '', '#6a5acd', 3, 5, height=350)
+                    st.plotly_chart(fig_vibration, use_container_width=True, key=f"live_vibration_{time.time()}")
         
         time.sleep(5)
 
