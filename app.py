@@ -253,5 +253,3 @@ while True:
                     "text/csv",
                     key=f'all_download_{time.time()}'
                 )
-    
-    time.sleep(5)
