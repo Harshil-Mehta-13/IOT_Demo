@@ -18,10 +18,22 @@ st.markdown("""
 .status-normal {background-color: #2ec27e;}
 .status-warning {background-color: #ffcc00; color: black;}
 .status-critical {background-color: #ff4b4b;}
+.metric-container {
+    background-color: #1E1E1E;
+    border-radius: 8px;
+    padding: 10px 20px;
+    margin-right: 12px;
+    color: white;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    user-select:none;
+    min-width:120px;
+}
 </style>
 """, unsafe_allow_html=True)
 
-# --- Supabase Connection ---
+# --- Supabase Setup ---
 @st.cache_resource(ttl=30)
 def init_supabase():
     return create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
@@ -41,6 +53,17 @@ def get_status(val, param):
     elif val > thresh["warn"]:
         return "warning"
     return "normal"
+
+def render_kpi(param, value):
+    status = get_status(value, param)
+    status_class = f"status-{status}"
+    st.markdown(f"""
+    <div class="metric-container">
+        <h4>{param.capitalize()}</h4>
+        <h2>{value:.2f}</h2>
+        <span class="status-badge {status_class}">{status.capitalize()}</span>
+    </div>
+    """, unsafe_allow_html=True)
 
 def create_pointer_gauge(param, value):
     thresh = STATUS_THRESHOLDS[param]
@@ -70,7 +93,7 @@ def create_pointer_gauge(param, value):
             }
         }
     ))
-    fig.update_layout(height=350, margin=dict(t=50, b=0, l=0, r=0), template="plotly_white")
+    fig.update_layout(height=300, margin=dict(t=50, b=0, l=0, r=0), template="plotly_white")
     return fig
 
 def create_trend_chart(df, param):
@@ -82,7 +105,7 @@ def create_trend_chart(df, param):
     fig.add_hline(y=thresh["crit"], line_dash="dash", line_color="red", annotation_text="Critical", annotation_position="top left")
     fig.update_layout(
         title=f"{param.capitalize()} Trend",
-        height=500,
+        height=450,
         margin=dict(l=30, r=30, t=50, b=30),
         template="plotly_white",
         yaxis=dict(range=thresh["range"]),
@@ -107,6 +130,19 @@ def fetch_data():
         return pd.DataFrame()
 
 # --- Main ---
+# Reserve space above title for KPIs
+st.markdown("<div style='margin-top:30px;'></div>", unsafe_allow_html=True)
+
+# KPIs Row full width above everything
+data = fetch_data()
+if not data.empty:
+    latest = data.iloc[-1]
+    kpi_cols = st.columns(3)
+    for i, p in enumerate(["temperature", "pressure", "vibration"]):
+        with kpi_cols[i]:
+            render_kpi(p, latest[p])
+
+# Main Title after KPIs
 st.title("⚙️ Air Compressor Monitoring Dashboard")
 
 with st.sidebar:
@@ -116,27 +152,22 @@ with st.sidebar:
 if app_mode == "Live Dashboard":
     st_autorefresh(interval=5000, key="dashboard_refresh")
 
-    data = fetch_data()
     if data.empty:
         st.warning("No data available. Please check your ESP32 connection.")
     else:
-        latest = data.iloc[-1]
+        # Two columns: gauges left, charts right
+        col_gauges, col_charts = st.columns([1, 3])
 
-        # Gauges horizontally
-        gauge_cols = st.columns(3)
-        for i, param in enumerate(["temperature", "pressure", "vibration"]):
-            with gauge_cols[i]:
-                st.plotly_chart(create_pointer_gauge(param, latest[param]), use_container_width=True)
+        with col_gauges:
+            for param in ["temperature", "pressure", "vibration"]:
+                fig = create_pointer_gauge(param, latest[param])
+                st.plotly_chart(fig, use_container_width=True)
 
-        st.markdown("---")
-
-        # Trend charts in tabs
-        tabs = st.tabs(["Temperature", "Pressure", "Vibration"])
-        for param, tab in zip(["temperature", "pressure", "vibration"], tabs):
-            with tab:
-                st.plotly_chart(create_trend_chart(data, param), use_container_width=True)
-
-        st.info("Dashboard refreshes every 5 seconds")
+        with col_charts:
+            tabs = st.tabs(["Temperature", "Pressure", "Vibration"])
+            for param, tab in zip(["temperature", "pressure", "vibration"], tabs):
+                with tab:
+                    st.plotly_chart(create_trend_chart(data, param), use_container_width=True)
 
 elif app_mode == "Database":
     st.subheader("Explore Raw Data")
@@ -164,8 +195,8 @@ elif app_mode == "Database":
             .lte("timestamp", end_utc.isoformat())
             .execute()
         )
-
         df = pd.DataFrame(resp.data)
+
         if df.empty:
             st.warning("No data found in selected range.")
         else:
