@@ -42,6 +42,7 @@ def get_live_data():
             return pd.DataFrame()
         
         df = pd.DataFrame(data)
+        # Convert UTC timestamp to IST and format for cleaner display
         df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.tz_convert(ist).dt.strftime('%Y-%m-%d %H:%M:%S')
         df = df.set_index("timestamp").sort_index()
         return df
@@ -156,7 +157,7 @@ if app_mode == "Live Dashboard":
                 st.subheader("Historical Trends (Last 1 Hour)")
                 
                 chart_col1, chart_col2, chart_col3 = st.columns(3)
-                
+
                 with chart_col1:
                     st.markdown("##### Temperature Trend")
                     fig_temp = create_chart(live_df, 'temperature', '', '#00BFFF', 60, 80, height=250)
@@ -214,12 +215,4 @@ elif app_mode == "Database":
                 
                 csv = filtered_df.to_csv().encode('utf-8')
                 st.download_button(
-                    "⬇️ Download Filtered CSV",
-                    csv,
-                    "filtered_data.csv",
-                    "text/csv",
-                    key='download_filtered'
-                )
-            
-    except Exception as e:
-        st.error(f"Error fetching data: {e}")
+                    "⬇️ Download
