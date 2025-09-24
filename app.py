@@ -37,9 +37,9 @@ def get_live_data():
             return pd.DataFrame()
         
         df = pd.DataFrame(data)
-        # Convert UTC timestamp to IST
+        # Convert UTC timestamp to IST and format for cleaner display
         ist = pytz.timezone('Asia/Kolkata')
-        df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.tz_convert(ist)
+        df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.tz_convert(ist).dt.strftime('%Y-%m-%d %H:%M:%S')
         df = df.set_index("timestamp").sort_index()
         return df
     except Exception as e:
@@ -61,7 +61,8 @@ def get_historical_data(start_time):
         
         df = pd.DataFrame(data)
         ist = pytz.timezone('Asia/Kolkata')
-        df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.tz_convert(ist)
+        # Convert UTC timestamp to IST and format for cleaner display
+        df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.tz_convert(ist).dt.strftime('%Y-%m-%d %H:%M:%S')
         df = df.set_index("timestamp").sort_index()
         return df
     except Exception as e:
@@ -149,7 +150,7 @@ if app_mode == "Live Dashboard":
 
                 st.markdown("---")
                 
-                st.subheader("Historical Trends (Last 100 Entries)")
+                st.subheader("Historical Trends (Last 1 Hour)")
                 
                 chart_col1, chart_col2, chart_col3 = st.columns(3)
                 
@@ -167,8 +168,7 @@ if app_mode == "Live Dashboard":
                     st.markdown("##### Vibration Trend")
                     fig_vibration = create_chart(live_df, 'vibration', '', '#6a5acd', 3, 5, height=250)
                     st.plotly_chart(fig_vibration, use_container_width=True, key=f"live_vibration_{time.time()}")
-                    st.markdown("<br>" * 10, unsafe_allow_html=True)
-                    
+        
         time.sleep(5)
 
 elif app_mode == "Database":
@@ -215,8 +215,6 @@ elif app_mode == "Database":
                     "text/csv",
                     key='download_filtered'
                 )
-
-        st.markdown("<br>" * 10, unsafe_allow_html=True)    
-        
+            
     except Exception as e:
         st.error(f"Error fetching data: {e}")
