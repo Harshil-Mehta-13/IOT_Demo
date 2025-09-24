@@ -81,7 +81,7 @@ def get_status(value, param_name):
     else:
         return "Normal", "#2ec27e"
 
-def create_chart(df, param_name, title, color, warn_thresh=None, crit_thresh=None, height=320):
+def create_chart(df, param_name, title, color, warn_thresh=None, crit_thresh=None, height=450):
     axis_ranges = {
         "temperature": [0, 100],
         "pressure": [0, 15],
@@ -115,7 +115,7 @@ with st.sidebar:
     app_mode = st.radio("Choose a view:", ["Live Dashboard", "Database"])
 
 if app_mode == "Live Dashboard":
-    # Auto refresh every 5 seconds without blocking
+    # Auto refresh every 5 seconds (non-blocking)
     st_autorefresh(interval=5000, key="air_compressor_refresh")
 
     live_df = get_live_data()
@@ -125,11 +125,9 @@ if app_mode == "Live Dashboard":
     else:
         latest = live_df.iloc[-1]
 
-        # Two columns: KPIs left narrow, charts right wide
         kpi_col, chart_col = st.columns([1, 3])
 
         with kpi_col:
-            # Smaller stacked KPI cards
             for param in ["temperature", "pressure", "vibration"]:
                 status, color = get_status(latest[param], param)
                 st.markdown(f"""
@@ -142,26 +140,24 @@ if app_mode == "Live Dashboard":
 
         with chart_col:
             st.markdown("### 📈 Historical Trends (Last 100 Readings)")
-            chart_cols = st.columns(3)
+
             params = ["temperature", "pressure", "vibration"]
             colors = ["#00BFFF", "#88d8b0", "#6a5acd"]
             warns = [60, 9, 3]
             crits = [80, 12, 5]
             titles = ["Temperature Trend", "Pressure Trend", "Vibration Trend"]
 
-            for i, col in enumerate(chart_cols):
-                with col:
-                    st.plotly_chart(
-                        create_chart(
-                            live_df,
-                            params[i],
-                            titles[i],
-                            colors[i],
-                            warn_thresh=warns[i],
-                            crit_thresh=crits[i],
-                        ),
-                        use_container_width=True,
-                    )
+            for i in range(len(params)):
+                fig = create_chart(
+                    live_df,
+                    params[i],
+                    titles[i],
+                    colors[i],
+                    warn_thresh=warns[i],
+                    crit_thresh=crits[i],
+                    height=450,
+                )
+                st.plotly_chart(fig, use_container_width=True)
 
         st.info("✅ Dashboard refreshes every 5 seconds smoothly.")
 
