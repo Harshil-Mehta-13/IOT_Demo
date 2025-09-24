@@ -168,6 +168,7 @@ if app_mode == "Live Dashboard":
                     st.markdown("##### Vibration Trend")
                     fig_vibration = create_chart(live_df, 'vibration', '', '#6a5acd', 3, 5, height=250)
                     st.plotly_chart(fig_vibration, use_container_width=True, key=f"live_vibration_{time.time()}")
+                    st.markdown("<br>" * 5, unsafe_allow_html=True)
         
         time.sleep(5)
 
