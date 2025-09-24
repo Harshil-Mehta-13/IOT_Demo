@@ -119,8 +119,7 @@ def create_chart(df, param_name, title, color, warn_thresh=None, crit_thresh=Non
     return fig
 
 # --- Main App Logic ---
-st.title("Air Compressor Monitoring Dashboard ⚙️")
-st.markdown("A real-time dashboard for tracking key operational metrics.")
+st.header("Air Compressor Monitoring Dashboard ⚙️")
 
 with st.sidebar:
     st.header("Navigation")
