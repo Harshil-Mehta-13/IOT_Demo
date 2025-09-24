@@ -11,31 +11,91 @@ st.set_page_config(page_title="Air Compressor Dashboard", page_icon="⚙️", la
 st.markdown("""
 <style>
 #MainMenu, footer, header {visibility: hidden;}
-.metric-container {
-    background-color: #1E1E1E; border-radius: 8px; padding: 16px; margin-bottom: 14px;
-    color: white; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    user-select:none;
-}
 .status-badge {
-    font-weight: 700; border-radius: 12px; padding: 3px 10px; font-size: 13px; display: inline-block;
+    font-weight: 700; border-radius: 12px; padding: 4px 12px; font-size: 13px; display: inline-block;
+    color: white;
 }
-.status-normal {background-color: #2ec27e; color: white;}
+.status-normal {background-color: #2ec27e;}
 .status-warning {background-color: #ffcc00; color: black;}
-.status-critical {background-color: #ff4b4b; color: white;}
+.status-critical {background-color: #ff4b4b;}
 </style>
 """, unsafe_allow_html=True)
 
-# --- Supabase Setup ---
+# --- Supabase Connection ---
 @st.cache_resource(ttl=30)
 def init_supabase():
     return create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
 supabase_client = init_supabase()
 
-def fetch_data(limit=120):
-    """Fetch latest data from Supabase"""
+STATUS_THRESHOLDS = {
+    "temperature": {"warn": 60, "crit": 80, "range": [0, 100]},
+    "pressure": {"warn": 9, "crit": 12, "range": [0, 15]},
+    "vibration": {"warn": 3, "crit": 5, "range": [0, 8]},
+}
+STATUS_COLORS = {"normal":"#2ec27e", "warning":"#ffcc00", "critical":"#ff4b4b"}
+
+def get_status(val, param):
+    thresh = STATUS_THRESHOLDS[param]
+    if val > thresh["crit"]:
+        return "critical"
+    elif val > thresh["warn"]:
+        return "warning"
+    return "normal"
+
+def create_pointer_gauge(param, value):
+    thresh = STATUS_THRESHOLDS[param]
+    status = get_status(value, param)
+    color = STATUS_COLORS[status]
+
+    fig = go.Figure(go.Indicator(
+        mode="gauge+number",
+        value=value,
+        number={'font': {'size': 28, 'color': color}},
+        title={'text': param.capitalize(), 'font': {'size': 22}},
+        gauge={
+            'axis': {'range': thresh["range"], 'tickwidth': 2, 'tickcolor': "darkgray"},
+            'bar': {'color': color, 'thickness': 0.3},
+            'bgcolor': "#eeeeee",
+            'borderwidth': 2,
+            'bordercolor': "gray",
+            'steps': [
+                {'range': [thresh["range"][0], thresh["warn"]], 'color': "#a8e6cf"},
+                {'range': [thresh["warn"], thresh["crit"]], 'color': "#ffd3b6"},
+                {'range': [thresh["crit"], thresh["range"][1]], 'color': "#ff8b94"},
+            ],
+            'threshold': {
+                'line': {'color': "red", 'width': 4},
+                'thickness': 0.8,
+                'value': thresh["crit"]
+            }
+        }
+    ))
+    fig.update_layout(height=350, margin=dict(t=50, b=0, l=0, r=0), template="plotly_white")
+    return fig
+
+def create_trend_chart(df, param):
+    thresh = STATUS_THRESHOLDS[param]
+    status_color = STATUS_COLORS[get_status(df[param].iloc[-1], param)]
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=df.index, y=df[param], mode="lines", line=dict(width=3, color=status_color)))
+    fig.add_hline(y=thresh["warn"], line_dash="dash", line_color="orange", annotation_text="Warning", annotation_position="top left")
+    fig.add_hline(y=thresh["crit"], line_dash="dash", line_color="red", annotation_text="Critical", annotation_position="top left")
+    fig.update_layout(
+        title=f"{param.capitalize()} Trend",
+        height=500,
+        margin=dict(l=30, r=30, t=50, b=30),
+        template="plotly_white",
+        yaxis=dict(range=thresh["range"]),
+        xaxis_title="Time",
+        showlegend=False,
+        title_x=0.5,
+        transition=dict(duration=500, easing='cubic-in-out')
+    )
+    return fig
+
+def fetch_data():
     try:
-        resp = (supabase_client.table("air_compressor").select("*").order("timestamp", desc=True).limit(limit).execute())
+        resp = supabase_client.table("air_compressor").select("*").order("timestamp", desc=True).limit(120).execute()
         if not resp.data:
             return pd.DataFrame()
         df = pd.DataFrame(resp.data)
@@ -43,73 +103,8 @@ def fetch_data(limit=120):
         df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.tz_convert(ist)
         return df.set_index("timestamp").sort_index()
     except Exception as e:
-        st.error(f"Fetching data error: {e}")
+        st.error(f"Error fetching data: {e}")
         return pd.DataFrame()
-
-# Thresholds and colors setup
-STATUS_THRESHOLDS = {
-    "temperature": {"warn": 60, "crit": 80, "range": [0, 100]},
-    "pressure": {"warn": 9, "crit": 12, "range": [0, 15]},
-    "vibration": {"warn": 3, "crit": 5, "range": [0, 8]},
-}
-STATUS_CLASSES = ["status-normal", "status-warning", "status-critical"]
-STATUS_COLORS = {"status-normal":"#2ec27e", "status-warning":"#ffcc00", "status-critical":"#ff4b4b"}
-
-def get_status(value, param):
-    thresh = STATUS_THRESHOLDS[param]
-    if value > thresh["crit"]:
-        return "Critical", "status-critical"
-    elif value > thresh["warn"]:
-        return "Warning", "status-warning"
-    else:
-        return "Normal", "status-normal"
-
-def kpi_card(param, value):
-    status_text, status_class = get_status(value, param)
-    st.markdown(f"""
-    <div class="metric-container">
-        <h3>{param.capitalize()}</h3>
-        <h1>{value:.2f}</h1>
-        <span class="status-badge {status_class}">{status_text}</span>
-    </div>
-    """, unsafe_allow_html=True)
-
-def create_gauge(param, value):
-    status_text, status_class = get_status(value, param)
-    r = STATUS_THRESHOLDS[param]["range"]
-    fig = go.Figure(go.Indicator(
-        mode="gauge+number", value=value, title={'text': param.capitalize()},
-        gauge={
-            'axis': {'range': r},
-            'bar': {'color': STATUS_COLORS[status_class]},
-            'steps': [
-                {'range': [r[0], r[0]+0.6*(r[1]-r[0])], 'color': "lightgreen"},
-                {'range': [r[0]+0.6*(r[1]-r[0]), r[0]+0.8*(r[1]-r[0])], 'color': "yellow"},
-                {'range': [r[0]+0.8*(r[1]-r[0]), r[1]], 'color': "red"},
-            ]
-        }
-    ))
-    fig.update_layout(height=300, margin=dict(t=30,b=0,l=0,r=0), template="plotly_dark")
-    return fig
-
-def create_trend_chart(df, param):
-    thresh = STATUS_THRESHOLDS[param]
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=df.index, y=df[param], mode="lines", line=dict(width=3, color=STATUS_COLORS[get_status(df[param].iloc[-1], param)[1]])))
-    fig.add_hline(y=thresh["warn"], line_dash="dot", line_color="orange", annotation_text="Warning", annotation_position="top left")
-    fig.add_hline(y=thresh["crit"], line_dash="dot", line_color="red", annotation_text="Critical", annotation_position="top left")
-    fig.update_layout(
-        title=f"{param.capitalize()} Trend",
-        height=500,
-        margin=dict(l=30, r=30, t=50, b=30),
-        template="plotly_dark",
-        yaxis=dict(range=thresh["range"]),
-        xaxis_title="Time",
-        showlegend=False,
-        transition=dict(duration=500, easing='cubic-in-out'),
-        title_x=0.5,
-    )
-    return fig
 
 # --- Main ---
 st.title("⚙️ Air Compressor Monitoring Dashboard")
@@ -119,76 +114,65 @@ with st.sidebar:
     app_mode = st.radio("View Mode", ["Live Dashboard", "Database"])
 
 if app_mode == "Live Dashboard":
-    # Auto-refresh every 5 seconds
-    st_autorefresh(interval=5000, key="refresh")
+    st_autorefresh(interval=5000, key="dashboard_refresh")
 
     data = fetch_data()
     if data.empty:
-        st.warning("No data available. Check your ESP32 connection.")
+        st.warning("No data available. Please check your ESP32 connection.")
     else:
         latest = data.iloc[-1]
 
-        # -- KPIs Row --
-        kpi_cols = st.columns(3)
-        for i, param in enumerate(["temperature", "pressure", "vibration"]):
-            with kpi_cols[i]:
-                kpi_card(param, latest[param])
-
-        st.markdown("---")
-
-        # -- Gauges Row --
+        # Gauges horizontally
         gauge_cols = st.columns(3)
         for i, param in enumerate(["temperature", "pressure", "vibration"]):
             with gauge_cols[i]:
-                st.plotly_chart(create_gauge(param, latest[param]), use_container_width=True)
+                st.plotly_chart(create_pointer_gauge(param, latest[param]), use_container_width=True)
 
         st.markdown("---")
 
-        # -- Tabbed Trends --
+        # Trend charts in tabs
         tabs = st.tabs(["Temperature", "Pressure", "Vibration"])
         for param, tab in zip(["temperature", "pressure", "vibration"], tabs):
             with tab:
                 st.plotly_chart(create_trend_chart(data, param), use_container_width=True)
 
-        st.info("Dashboard refreshes every 5 seconds.")
+        st.info("Dashboard refreshes every 5 seconds")
 
 elif app_mode == "Database":
     st.subheader("Explore Raw Data")
 
-    col_start, col_end, col_param = st.columns(3)
-    with col_start:
-        start_date = st.date_input("Start Date", value=datetime.now().date() - timedelta(days=7))
-    with col_end:
-        end_date = st.date_input("End Date", value=datetime.now().date())
-    with col_param:
+    start_col, end_col, param_col = st.columns(3)
+    with start_col:
+        start_date = st.date_input("Start Date", datetime.now().date() - timedelta(days=7))
+    with end_col:
+        end_date = st.date_input("End Date", datetime.now().date())
+    with param_col:
         params = ["temperature", "pressure", "vibration"]
-        selected_params = st.multiselect("Select Parameters", options=params, default=params)
-
-    start_dt = datetime.combine(start_date, datetime.min.time())
-    end_dt = datetime.combine(end_date, datetime.max.time())
+        selected_params = st.multiselect("Select Parameter(s):", options=params, default=params)
 
     try:
         ist = pytz.timezone("Asia/Kolkata")
-        start_dt_utc = ist.localize(start_dt).astimezone(pytz.utc)
-        end_dt_utc = ist.localize(end_dt).astimezone(pytz.utc)
+        start_dt = datetime.combine(start_date, datetime.min.time())
+        end_dt = datetime.combine(end_date, datetime.max.time())
+        start_utc = ist.localize(start_dt).astimezone(pytz.utc)
+        end_utc = ist.localize(end_dt).astimezone(pytz.utc)
 
         resp = (
             supabase_client.table("air_compressor")
             .select("*")
-            .gte("timestamp", start_dt_utc.isoformat())
-            .lte("timestamp", end_dt_utc.isoformat())
+            .gte("timestamp", start_utc.isoformat())
+            .lte("timestamp", end_utc.isoformat())
             .execute()
         )
-        df = pd.DataFrame(resp.data)
 
+        df = pd.DataFrame(resp.data)
         if df.empty:
-            st.warning("No data for selected date range.")
+            st.warning("No data found in selected range.")
         else:
             if selected_params:
                 df = df[["timestamp"] + selected_params]
             st.dataframe(df, use_container_width=True, height=500)
-            csv = df.to_csv().encode("utf-8")
+            csv = df.to_csv(index=False).encode("utf-8")
             st.download_button("Download CSV", csv, "filtered_data.csv", "text/csv", key="download")
-
     except Exception as e:
         st.error(f"Error fetching data: {e}")
