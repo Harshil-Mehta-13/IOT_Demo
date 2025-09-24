@@ -25,11 +25,16 @@ supabase_client = init_connection()
 # --- Helper Functions for Data Fetching and Styling ---
 def get_live_data():
     try:
+        ist = pytz.timezone('Asia/Kolkata')
+        now_ist = datetime.now(ist)
+        # Query data for the last 60 minutes
+        start_time_utc = (now_ist - timedelta(minutes=60)).astimezone(pytz.utc)
+
         response = (
             supabase_client.table("air_compressor")
             .select("*")
+            .gte("timestamp", start_time_utc.isoformat())
             .order("timestamp", desc=True)
-            .limit(100)
             .execute()
         )
         data = response.data
@@ -37,9 +42,8 @@ def get_live_data():
             return pd.DataFrame()
         
         df = pd.DataFrame(data)
-        # Convert UTC timestamp to IST
-        ist = pytz.timezone('Asia/Kolkata')
-        df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.tz_convert(ist)
+        # Correctly convert and format the timestamp for cleaner display
+        df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.tz_convert(ist).dt.strftime('%Y-%m-%d %H:%M:%S')
         df = df.set_index("timestamp").sort_index()
         return df
     except Exception as e:
@@ -61,7 +65,7 @@ def get_historical_data(start_time):
         
         df = pd.DataFrame(data)
         ist = pytz.timezone('Asia/Kolkata')
-        df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.tz_convert(ist)
+        df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.tz_convert(ist).dt.strftime('%Y-%m-%d %H:%M:%S')
         df = df.set_index("timestamp").sort_index()
         return df
     except Exception as e:
@@ -120,6 +124,7 @@ def create_chart(df, param_name, title, color, warn_thresh=None, crit_thresh=Non
 
 # --- Main App Logic ---
 st.title("Air Compressor Monitoring Dashboard ⚙️")
+st.markdown("A real-time dashboard for tracking key operational metrics.")
 
 with st.sidebar:
     st.header("Navigation")
@@ -149,24 +154,27 @@ if app_mode == "Live Dashboard":
 
                 st.markdown("---")
                 
-                st.subheader("Historical Trends (Last 100 Entries)")
+                st.subheader("Historical Trends (Last 1 Hour)")
                 
-                chart_col1, chart_col2, chart_col3 = st.columns([0.75, 0.75, 0.75])
-
+                chart_col1, chart_col2, chart_col3 = st.columns(3)
+                
                 with chart_col1:
                     st.markdown("##### Temperature Trend")
-                    fig_temp = create_chart(live_df, 'temperature', '', '#00BFFF', 60, 80, height=350)
+                    fig_temp = create_chart(live_df, 'temperature', '', '#00BFFF', 60, 80, height=250)
                     st.plotly_chart(fig_temp, use_container_width=True, key=f"live_temp_{time.time()}")
+                
                 with chart_col2:
                     st.markdown("##### Pressure Trend")
-                    fig_pressure = create_chart(live_df, 'pressure', '', '#88d8b0', 9, 12, height=350)
+                    fig_pressure = create_chart(live_df, 'pressure', '', '#88d8b0', 9, 12, height=250)
                     st.plotly_chart(fig_pressure, use_container_width=True, key=f"live_pressure_{time.time()}")
+                
                 with chart_col3:
                     st.markdown("##### Vibration Trend")
-                    fig_vibration = create_chart(live_df, 'vibration', '', '#6a5acd', 3, 5, height=350)
+                    fig_vibration = create_chart(live_df, 'vibration', '', '#6a5acd', 3, 5, height=250)
                     st.plotly_chart(fig_vibration, use_container_width=True, key=f"live_vibration_{time.time()}")
-                st.markdown("<br>" * 5, unsafe_allow_html=True)
                 
+                st.markdown("<br>" * 5, unsafe_allow_html=True)
+        
         time.sleep(5)
 
 elif app_mode == "Database":
@@ -199,8 +207,8 @@ elif app_mode == "Database":
                 cols_to_display = ['timestamp'] + selected_params
                 filtered_df = filtered_df[cols_to_display]
             else:
-                st.warning("Please select at least one parameter.")
                 filtered_df = pd.DataFrame()
+                st.warning("Please select at least one parameter.")
 
             if not filtered_df.empty:
                 st.dataframe(filtered_df, use_container_width=True, height=500)
