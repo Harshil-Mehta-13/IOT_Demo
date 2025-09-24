@@ -149,11 +149,12 @@ if app_mode == "Live Dashboard":
             st.plotly_chart(create_chart(live_df, "vibration", "Vibration Trend", "#6a5acd", 3, 5, height=300), use_container_width=True)
 
     st_autorefresh = st.experimental_memo  # dummy fallback
+      # --- Auto refresh every 5 sec ---
     try:
         from streamlit_autorefresh import st_autorefresh
         st_autorefresh(interval=5000, limit=None, key="refresh_dashboard")
-    except Exception:
-        st.info("Auto-refresh not available, refresh manually.")
+    except ImportError:
+        st.info("Auto-refresh not available. Please refresh manually.")
 
 elif app_mode == "Database":
     st.subheader("📂 Database View")
