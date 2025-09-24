@@ -14,25 +14,25 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- Custom Styling ---
+# --- Styling ---
 st.markdown("""
     <style>
     #MainMenu, footer, header {visibility: hidden;}
+
+    /* KPI card styles */
     .metric-container {
         background-color: #1E1E1E;
         border-radius: 8px;
-        padding: 10px 15px;
+        padding: 15px;
         margin-bottom: 12px;
         color: white;
-        text-align: left;
+        text-align: center;
         box-shadow: 0px 1px 5px rgba(0,0,0,0.2);
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
-    .status-text {
-        font-weight: 600;
-        font-size: 13px;
-        margin-top: 3px;
-    }
+    .status-normal {color: #2ec27e; font-weight:600;}
+    .status-warning {color: #ffcc00; font-weight:600;}
+    .status-critical {color: #ff4b4b; font-weight:600;}
     </style>
 """, unsafe_allow_html=True)
 
@@ -74,12 +74,38 @@ def get_status(value, param_name):
     }
     warn = thresholds[param_name]["warn"]
     crit = thresholds[param_name]["crit"]
+
     if value > crit:
-        return "Critical", "#ff4b4b"
+        return "Critical", "status-critical"
     elif value > warn:
-        return "Warning", "#ffcc00"
+        return "Warning", "status-warning"
     else:
-        return "Normal", "#2ec27e"
+        return "Normal", "status-normal"
+
+def create_gauge(value, param_name, color_class):
+    axis_ranges = {
+        "temperature": [0, 100],
+        "pressure": [0, 15],
+        "vibration": [0, 8],
+    }
+    y_range = axis_ranges.get(param_name, [0, 100])
+
+    fig = go.Figure(go.Indicator(
+        mode="gauge+number",
+        value=value,
+        title={'text': param_name.capitalize()},
+        gauge={
+            'axis': {'range': y_range},
+            'bar': {'color': color_class},
+            'steps': [
+                {'range': [y_range[0], y_range[0]+0.6*(y_range[1]-y_range[0])], 'color': "lightgreen"},
+                {'range': [y_range[0]+0.6*(y_range[1]-y_range[0]), y_range[0]+0.8*(y_range[1]-y_range[0])], 'color': "yellow"},
+                {'range': [y_range[0]+0.8*(y_range[1]-y_range[0]), y_range[1]], 'color': "red"}
+            ],
+        }
+    ))
+    fig.update_layout(height=300, margin=dict(t=30,b=0,l=0,r=0), template="plotly_dark")
+    return fig
 
 def create_chart(df, param_name, title, color, warn_thresh=None, crit_thresh=None, height=450):
     axis_ranges = {
@@ -89,15 +115,15 @@ def create_chart(df, param_name, title, color, warn_thresh=None, crit_thresh=Non
     }
     y_range = axis_ranges.get(param_name, None)
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=df.index, y=df[param_name], mode="lines", line=dict(color=color, width=2)))
+    fig.add_trace(go.Scatter(x=df.index, y=df[param_name], mode="lines", line=dict(color=color, width=3)))
     if warn_thresh:
         fig.add_hline(y=warn_thresh, line_dash="dot", line_color="orange", annotation_text="Warning", annotation_position="top left")
     if crit_thresh:
         fig.add_hline(y=crit_thresh, line_dash="dot", line_color="red", annotation_text="Critical", annotation_position="top left")
     fig.update_layout(
         height=height,
-        margin=dict(l=20, r=20, t=50, b=20),
-        title=dict(text=title, font=dict(size=16, color="white")),
+        margin=dict(l=30, r=30, t=50, b=30),
+        title=dict(text=title, font=dict(size=18, color="white")),
         template="plotly_dark",
         xaxis_title="Time",
         yaxis=dict(range=y_range),
@@ -115,9 +141,7 @@ with st.sidebar:
     app_mode = st.radio("Choose a view:", ["Live Dashboard", "Database"])
 
 if app_mode == "Live Dashboard":
-    # Auto refresh every 5 seconds (non-blocking)
     st_autorefresh(interval=5000, key="air_compressor_refresh")
-
     live_df = get_live_data()
 
     if live_df.empty:
@@ -125,41 +149,50 @@ if app_mode == "Live Dashboard":
     else:
         latest = live_df.iloc[-1]
 
-        kpi_col, chart_col = st.columns([1, 3])
-
-        with kpi_col:
-            for param in ["temperature", "pressure", "vibration"]:
-                status, color = get_status(latest[param], param)
-                st.markdown(f"""
-                    <div class="metric-container">
-                        <h4 style="margin:0;">{param.capitalize()}</h4>
-                        <h2 style="margin:0;">{latest[param]:.2f}</h2>
-                        <p class="status-text" style="color:{color}; margin:0;">{status}</p>
-                    </div>
+        # Top KPIs row
+        kpi_cols = st.columns(3)
+        for i, param in enumerate(["temperature", "pressure", "vibration"]):
+            val = latest[param]
+            status_text, status_class = get_status(val, param)
+            kpi_cols[i].markdown(f"""
+                <div class="metric-container">
+                    <h3>{param.capitalize()}</h3>
+                    <h1>{val:.2f}</h1>
+                    <p class="{status_class}">{status_text}</p>
+                </div>
                 """, unsafe_allow_html=True)
 
-        with chart_col:
-            st.markdown("### 📈 Historical Trends (Last 100 Readings)")
+        # Gauges row
+        st.markdown("---")
+        gauge_cols = st.columns(3)
+        for i, param in enumerate(["temperature", "pressure", "vibration"]):
+            val = latest[param]
+            _, status_class = get_status(val, param)
+            color_map = {"status-normal": "#2ec27e", "status-warning": "#ffcc00", "status-critical": "#ff4b4b"}
+            fig = create_gauge(val, param, color_map[status_class])
+            gauge_cols[i].plotly_chart(fig, use_container_width=True)
 
-            params = ["temperature", "pressure", "vibration"]
-            colors = ["#00BFFF", "#88d8b0", "#6a5acd"]
-            warns = [60, 9, 3]
-            crits = [80, 12, 5]
-            titles = ["Temperature Trend", "Pressure Trend", "Vibration Trend"]
+        # Historical charts tabs
+        st.markdown("---")
+        tabs = st.tabs(["Temperature Trend", "Pressure Trend", "Vibration Trend"])
+        colors = ["#00BFFF", "#88d8b0", "#6a5acd"]
+        warns = [60, 9, 3]
+        crits = [80, 12, 5]
+        params = ["temperature", "pressure", "vibration"]
 
-            for i in range(len(params)):
+        for i, tab in enumerate(tabs):
+            with tab:
                 fig = create_chart(
                     live_df,
                     params[i],
-                    titles[i],
+                    f"{params[i].capitalize()} Trend",
                     colors[i],
                     warn_thresh=warns[i],
                     crit_thresh=crits[i],
-                    height=450,
-                )
+                    height=500)
                 st.plotly_chart(fig, use_container_width=True)
 
-        st.info("✅ Dashboard refreshes every 5 seconds smoothly.")
+        st.info("✅ Dashboard refreshes every 5 seconds")
 
 elif app_mode == "Database":
     st.subheader("📊 Explore Raw Database Data")
@@ -174,10 +207,12 @@ elif app_mode == "Database":
 
     start_dt = datetime.combine(start_date, datetime.min.time())
     end_dt = datetime.combine(end_date, datetime.max.time())
+
     try:
         ist = pytz.timezone("Asia/Kolkata")
         start_dt_utc = ist.localize(start_dt).astimezone(pytz.utc)
         end_dt_utc = ist.localize(end_dt).astimezone(pytz.utc)
+
         response = (
             supabase_client.table("air_compressor")
             .select("*")
