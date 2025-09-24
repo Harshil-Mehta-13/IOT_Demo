@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 from supabase import create_client
-import time
+from streamlit_autorefresh import st_autorefresh
 import plotly.graph_objects as go
 import pytz
 from datetime import datetime, timedelta
@@ -15,12 +15,9 @@ st.set_page_config(
 )
 
 # --- Custom Styling ---
-st.markdown(
-    """
+st.markdown("""
     <style>
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
+    #MainMenu, footer, header {visibility: hidden;}
     .metric-container {
         background-color: #1E1E1E;
         border-radius: 10px;
@@ -35,9 +32,7 @@ st.markdown(
         font-size: 14px;
     }
     </style>
-    """,
-    unsafe_allow_html=True
-)
+""", unsafe_allow_html=True)
 
 # --- Supabase Connection ---
 @st.cache_resource(ttl="30s")
@@ -48,7 +43,6 @@ def init_connection():
 
 supabase_client = init_connection()
 
-# --- Helper Functions ---
 def get_live_data():
     try:
         response = (
@@ -78,7 +72,6 @@ def get_status(value, param_name):
     }
     warn = thresholds[param_name]["warn"]
     crit = thresholds[param_name]["crit"]
-
     if value > crit:
         return "Critical", "#ff4b4b"
     elif value > warn:
@@ -105,7 +98,7 @@ def create_chart(df, param_name, title, color, warn_thresh=None, crit_thresh=Non
     )
     return fig
 
-# --- Main App ---
+# --- MAIN APP ---
 st.title("⚙️ Air Compressor Monitoring Dashboard")
 
 with st.sidebar:
@@ -113,65 +106,60 @@ with st.sidebar:
     app_mode = st.radio("Choose a view:", ["Live Dashboard", "Database"])
 
 if app_mode == "Live Dashboard":
-    live_placeholder = st.empty()
-    while True:
-        live_df = get_live_data()
-        with live_placeholder.container():
-            if live_df.empty:
-                st.warning("⚠️ No data available. Please check your ESP32 connection.")
-            else:
-                latest = live_df.iloc[-1]
-                kpi_col1, kpi_col2, kpi_col3 = st.columns(3)
+    st_autorefresh(interval=5000, key="air_compressor_refresh")
+    live_df = get_live_data()
+    if live_df.empty:
+        st.warning("⚠️ No data available. Please check your ESP32 connection.")
+    else:
+        latest = live_df.iloc[-1]
+        kpi_col1, kpi_col2, kpi_col3 = st.columns(3)
 
-                with kpi_col1:
-                    status, color = get_status(latest["temperature"], "temperature")
-                    st.markdown(
-                        f"""
-                        <div class="metric-container">
-                            <h3>🌡️ Temperature</h3>
-                            <h2>{latest['temperature']:.2f} °C</h2>
-                            <p class="status-text" style="color:{color};">{status}</p>
-                        </div>
-                        """,
-                        unsafe_allow_html=True,
-                    )
-                with kpi_col2:
-                    status, color = get_status(latest["pressure"], "pressure")
-                    st.markdown(
-                        f"""
-                        <div class="metric-container">
-                            <h3>⏲️ Pressure</h3>
-                            <h2>{latest['pressure']:.2f} bar</h2>
-                            <p class="status-text" style="color:{color};">{status}</p>
-                        </div>
-                        """,
-                        unsafe_allow_html=True,
-                    )
-                with kpi_col3:
-                    status, color = get_status(latest["vibration"], "vibration")
-                    st.markdown(
-                        f"""
-                        <div class="metric-container">
-                            <h3>📳 Vibration</h3>
-                            <h2>{latest['vibration']:.2f}</h2>
-                            <p class="status-text" style="color:{color};">{status}</p>
-                        </div>
-                        """,
-                        unsafe_allow_html=True,
-                    )
+        with kpi_col1:
+            status, color = get_status(latest["temperature"], "temperature")
+            st.markdown(
+                f"""
+                <div class="metric-container">
+                    <h3>🌡️ Temperature</h3>
+                    <h2>{latest['temperature']:.2f} °C</h2>
+                    <p class="status-text" style="color:{color};">{status}</p>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+        with kpi_col2:
+            status, color = get_status(latest["pressure"], "pressure")
+            st.markdown(
+                f"""
+                <div class="metric-container">
+                    <h3>⏲️ Pressure</h3>
+                    <h2>{latest['pressure']:.2f} bar</h2>
+                    <p class="status-text" style="color:{color};">{status}</p>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+        with kpi_col3:
+            status, color = get_status(latest["vibration"], "vibration")
+            st.markdown(
+                f"""
+                <div class="metric-container">
+                    <h3>📳 Vibration</h3>
+                    <h2>{latest['vibration']:.2f}</h2>
+                    <p class="status-text" style="color:{color};">{status}</p>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
 
-                st.markdown("### 📈 Historical Trends (Last 100 Readings)")
-                chart_col1, chart_col2, chart_col3 = st.columns([1, 1, 1])
+        st.markdown("### 📈 Historical Trends (Last 100 Readings)")
+        chart_col1, chart_col2, chart_col3 = st.columns([1, 1, 1])
 
-                with chart_col1:
-                    st.plotly_chart(create_chart(live_df, "temperature", "Temperature Trend", "#00BFFF", 60, 80), use_container_width=True, key="live_temp_chart")
-                with chart_col2:
-                    st.plotly_chart(create_chart(live_df, "pressure", "Pressure Trend", "#88d8b0", 9, 12), use_container_width=True, key="live_pressure_chart")
-                with chart_col3:
-                    st.plotly_chart(create_chart(live_df, "vibration", "Vibration Trend", "#6a5acd", 3, 5), use_container_width=True, key="live_vibration_chart")
-
-                st.info("✅ Dashboard refreshes every 5 seconds to display the latest data.")
-        time.sleep(5)
+        with chart_col1:
+            st.plotly_chart(create_chart(live_df, "temperature", "Temperature Trend", "#00BFFF", 60, 80), use_container_width=True)
+        with chart_col2:
+            st.plotly_chart(create_chart(live_df, "pressure", "Pressure Trend", "#88d8b0", 9, 12), use_container_width=True)
+        with chart_col3:
+            st.plotly_chart(create_chart(live_df, "vibration", "Vibration Trend", "#6a5acd", 3, 5), use_container_width=True)
 
 elif app_mode == "Database":
     st.subheader("📊 Explore Raw Database Data")
@@ -183,9 +171,9 @@ elif app_mode == "Database":
     with col_param:
         parameters = ["temperature", "pressure", "vibration"]
         selected_params = st.multiselect("Select Parameter(s):", options=parameters, default=parameters)
+
     start_dt = datetime.combine(start_date, datetime.min.time())
     end_dt = datetime.combine(end_date, datetime.max.time())
-
     try:
         ist = pytz.timezone("Asia/Kolkata")
         start_dt_utc = ist.localize(start_dt).astimezone(pytz.utc)
