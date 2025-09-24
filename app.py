@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from supabase import create_client, Client
+from supabase import create_client
 import time
 import plotly.graph_objects as go
 import pytz
@@ -9,8 +9,38 @@ from datetime import datetime, timedelta
 # --- Page Config ---
 st.set_page_config(
     page_title="Air Compressor Dashboard",
+    page_icon="⚙️",
     layout="wide",
     initial_sidebar_state="expanded"
+)
+
+# --- Custom Styling ---
+st.markdown(
+    """
+    <style>
+    /* Hide Streamlit branding */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+
+    /* KPI Card Styling */
+    .metric-container {
+        background-color: #1E1E1E;
+        border-radius: 10px;
+        padding: 15px;
+        margin: 10px;
+        color: white;
+        text-align: center;
+        box-shadow: 0px 2px 6px rgba(0,0,0,0.3);
+    }
+
+    .status-text {
+        font-weight: bold;
+        font-size: 14px;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
 )
 
 # --- Supabase Connection ---
@@ -22,14 +52,14 @@ def init_connection():
 
 supabase_client = init_connection()
 
-# --- Helper Functions for Data Fetching and Styling ---
+# --- Helper Functions ---
 def get_live_data():
     try:
         response = (
             supabase_client.table("air_compressor")
             .select("*")
             .order("timestamp", desc=True)
-            .limit(100)
+            .limit(120)  # More entries for better charts
             .execute()
         )
         data = response.data
@@ -37,7 +67,6 @@ def get_live_data():
             return pd.DataFrame()
         
         df = pd.DataFrame(data)
-        # Convert UTC timestamp to IST
         ist = pytz.timezone('Asia/Kolkata')
         df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.tz_convert(ist)
         df = df.set_index("timestamp").sort_index()
@@ -46,131 +75,116 @@ def get_live_data():
         st.error(f"Error fetching data: {e}")
         return pd.DataFrame()
 
-def get_historical_data(start_time):
-    try:
-        response = (
-            supabase_client.table("air_compressor")
-            .select("*")
-            .gte("timestamp", start_time.isoformat())
-            .order("timestamp", desc=True)
-            .execute()
-        )
-        data = response.data
-        if not data:
-            return pd.DataFrame()
-        
-        df = pd.DataFrame(data)
-        ist = pytz.timezone('Asia/Kolkata')
-        df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.tz_convert(ist)
-        df = df.set_index("timestamp").sort_index()
-        return df
-    except Exception as e:
-        st.error(f"Error fetching historical data: {e}")
-        return pd.DataFrame()
+def get_status(value, param_name):
+    thresholds = {
+        "temperature": {"warn": 60, "crit": 80},
+        "pressure": {"warn": 9, "crit": 12},
+        "vibration": {"warn": 3, "crit": 5},
+    }
+    warn = thresholds[param_name]["warn"]
+    crit = thresholds[param_name]["crit"]
 
-def get_status_color(value, param_name):
-    if param_name == 'temperature':
-        if value > 80: return "#ff4b4b"
-        elif value > 60: return "#ffcc00"
-        else: return "#2ec27e"
-    elif param_name == 'pressure':
-        if value > 12: return "#ff4b4b"
-        elif value > 9: return "#ffcc00"
-        else: return "#2ec27e"
-    elif param_name == 'vibration':
-        if value > 5: return "#ff4b4b"
-        elif value > 3: return "#ffcc00"
-        else: return "#2ec27e"
-    return "#2ec27e"
+    if value > crit:
+        return "Critical", "#ff4b4b"
+    elif value > warn:
+        return "Warning", "#ffcc00"
+    else:
+        return "Normal", "#2ec27e"
 
-def get_status_text(value, param_name):
-    if param_name == 'temperature':
-        if value > 80: return "Critical"
-        elif value > 60: return "Warning"
-        else: return "Normal"
-    elif param_name == 'pressure':
-        if value > 12: return "Critical"
-        elif value > 9: return "Warning"
-        else: return "Normal"
-    elif param_name == 'vibration':
-        if value > 5: return "Critical"
-        elif value > 3: return "Warning"
-        else: return "Normal"
-    return "Normal"
-
-def create_chart(df, param_name, title, color, warn_thresh=None, crit_thresh=None, height=300):
+def create_chart(df, param_name, title, color, warn_thresh=None, crit_thresh=None, height=320):
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=df.index, y=df[param_name], mode='lines', name=title, line=dict(color=color)))
-    
+    fig.add_trace(go.Scatter(x=df.index, y=df[param_name], mode="lines", name=title, line=dict(color=color, width=2)))
+
+    # Add thresholds
     if warn_thresh:
-        fig.add_hline(y=warn_thresh, line_dash="dash", line_color="orange", annotation_text="Warning", annotation_position="top left")
+        fig.add_hline(y=warn_thresh, line_dash="dot", line_color="orange", annotation_text="Warning", annotation_position="top left")
     if crit_thresh:
-        fig.add_hline(y=crit_thresh, line_dash="dash", line_color="red", annotation_text="Critical", annotation_position="top left")
+        fig.add_hline(y=crit_thresh, line_dash="dot", line_color="red", annotation_text="Critical", annotation_position="top left")
 
     fig.update_layout(
         height=height,
-        margin={"l": 10, "r": 10, "t": 30, "b": 0},
-        title=dict(text=title, font=dict(size=14)),
+        margin=dict(l=20, r=20, t=50, b=20),
+        title=dict(text=title, font=dict(size=16, color="white")),
         template="plotly_dark",
-        xaxis_title=None,
+        xaxis_title="Time",
         yaxis_title=None,
-        showlegend=False
+        showlegend=False,
+        title_x=0.5
     )
     return fig
 
-# --- Main App Logic ---
-st.title("Air Compressor Monitoring Dashboard ⚙️")
+# --- Main App ---
+st.title("⚙️ Air Compressor Monitoring Dashboard")
 
 with st.sidebar:
-    st.header("Navigation")
-    app_mode = st.radio("Choose a page", ["Live Dashboard", "Database"])
+    st.header("📌 Navigation")
+    app_mode = st.radio("Choose a view:", ["Live Dashboard", "Database"])
 
 if app_mode == "Live Dashboard":
     live_placeholder = st.empty()
+
     while True:
         live_df = get_live_data()
         with live_placeholder.container():
             if live_df.empty:
-                st.warning("No data available. Please check your ESP32 connection.")
+                st.warning("⚠️ No data available. Please check your ESP32 connection.")
             else:
                 latest = live_df.iloc[-1]
-                
+
                 kpi_col1, kpi_col2, kpi_col3 = st.columns(3)
 
                 with kpi_col1:
-                    st.metric(label="🌡️ Temp (°C)", value=f"{latest['temperature']:.2f}")
-                    st.markdown(f"**Status:** <span style='color: {get_status_color(latest['temperature'], 'temperature')};'>{get_status_text(latest['temperature'], 'temperature')}</span>", unsafe_allow_html=True)
+                    status, color = get_status(latest["temperature"], "temperature")
+                    st.markdown(
+                        f"""
+                        <div class="metric-container">
+                            <h3>🌡️ Temperature</h3>
+                            <h2>{latest['temperature']:.2f} °C</h2>
+                            <p class="status-text" style="color:{color};">{status}</p>
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
                 with kpi_col2:
-                    st.metric(label="PSI Pressure (bar)", value=f"{latest['pressure']:.2f}")
-                    st.markdown(f"**Status:** <span style='color: {get_status_color(latest['pressure'], 'pressure')};'>{get_status_text(latest['pressure'], 'pressure')}</span>", unsafe_allow_html=True)
+                    status, color = get_status(latest["pressure"], "pressure")
+                    st.markdown(
+                        f"""
+                        <div class="metric-container">
+                            <h3>⏲️ Pressure</h3>
+                            <h2>{latest['pressure']:.2f} bar</h2>
+                            <p class="status-text" style="color:{color};">{status}</p>
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
                 with kpi_col3:
-                    st.metric(label="📳 Vibration", value=f"{latest['vibration']:.2f}")
-                    st.markdown(f"**Status:** <span style='color: {get_status_color(latest['vibration'], 'vibration')};'>{get_status_text(latest['vibration'], 'vibration')}</span>", unsafe_allow_html=True)
+                    status, color = get_status(latest["vibration"], "vibration")
+                    st.markdown(
+                        f"""
+                        <div class="metric-container">
+                            <h3>📳 Vibration</h3>
+                            <h2>{latest['vibration']:.2f}</h2>
+                            <p class="status-text" style="color:{color};">{status}</p>
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
 
-                st.markdown("---")
-                
-                st.subheader("Historical Trends (Last 100 Entries)")
-                
-                chart_col1, chart_col2, chart_col3 = st.columns([0.75, 0.75, 0.75])
+                st.markdown("### 📈 Historical Trends (Last 100 Readings)")
+                chart_col1, chart_col2, chart_col3 = st.columns([1, 1, 1])
 
                 with chart_col1:
-                    st.markdown("##### Temperature Trend")
-                    fig_temp = create_chart(live_df, 'temperature', '', '#00BFFF', 60, 80, height=350)
-                    st.plotly_chart(fig_temp, use_container_width=True, key=f"live_temp_{time.time()}")
+                    st.plotly_chart(create_chart(live_df, "temperature", "Temperature Trend", "#00BFFF", 60, 80), use_container_width=True)
                 with chart_col2:
-                    st.markdown("##### Pressure Trend")
-                    fig_pressure = create_chart(live_df, 'pressure', '', '#88d8b0', 9, 12, height=350)
-                    st.plotly_chart(fig_pressure, use_container_width=True, key=f"live_pressure_{time.time()}")
+                    st.plotly_chart(create_chart(live_df, "pressure", "Pressure Trend", "#88d8b0", 9, 12), use_container_width=True)
                 with chart_col3:
-                    st.markdown("##### Vibration Trend")
-                    fig_vibration = create_chart(live_df, 'vibration', '', '#6a5acd', 3, 5, height=350)
-                    st.plotly_chart(fig_vibration, use_container_width=True, key=f"live_vibration_{time.time()}")
-                st.markdown("<br>" * 5, unsafe_allow_html=True)
-                
+                    st.plotly_chart(create_chart(live_df, "vibration", "Vibration Trend", "#6a5acd", 3, 5), use_container_width=True)
+
+                st.info("✅ Dashboard refreshes every 5 seconds to display the latest data.")
         time.sleep(5)
 
 elif app_mode == "Database":
-    st.subheader("Raw Database Data")
+    st.subheader("📊 Explore Raw Database Data")
     
     col_start, col_end, col_param = st.columns(3)
     with col_start:
@@ -178,41 +192,42 @@ elif app_mode == "Database":
     with col_end:
         end_date = st.date_input("End Date", value=datetime.now().date())
     with col_param:
-        parameters = ['temperature', 'pressure', 'vibration']
-        selected_params = st.multiselect("Select Parameter(s) to Filter:", options=parameters, default=parameters)
+        parameters = ["temperature", "pressure", "vibration"]
+        selected_params = st.multiselect("Select Parameter(s):", options=parameters, default=parameters)
     
     start_dt = datetime.combine(start_date, datetime.min.time())
     end_dt = datetime.combine(end_date, datetime.max.time())
-    
     try:
-        ist = pytz.timezone('Asia/Kolkata')
-        start_dt_utc = ist.localize(start_dt, is_dst=None).astimezone(pytz.utc)
-        end_dt_utc = ist.localize(end_dt, is_dst=None).astimezone(pytz.utc)
+        ist = pytz.timezone("Asia/Kolkata")
+        start_dt_utc = ist.localize(start_dt).astimezone(pytz.utc)
+        end_dt_utc = ist.localize(end_dt).astimezone(pytz.utc)
         
-        response = supabase_client.table("air_compressor").select("*").gte("timestamp", start_dt_utc.isoformat()).lte("timestamp", end_dt_utc.isoformat()).execute()
+        response = (
+            supabase_client.table("air_compressor")
+            .select("*")
+            .gte("timestamp", start_dt_utc.isoformat())
+            .lte("timestamp", end_dt_utc.isoformat())
+            .execute()
+        )
         
         filtered_df = pd.DataFrame(response.data)
         if filtered_df.empty:
-            st.warning("No records found for the selected date range.")
+            st.warning("⚠️ No records found for this date range.")
         else:
             if selected_params:
-                cols_to_display = ['timestamp'] + selected_params
+                cols_to_display = ["timestamp"] + selected_params
                 filtered_df = filtered_df[cols_to_display]
-            else:
-                st.warning("Please select at least one parameter.")
-                filtered_df = pd.DataFrame()
 
-            if not filtered_df.empty:
-                st.dataframe(filtered_df, use_container_width=True, height=500)
-                
-                csv = filtered_df.to_csv().encode('utf-8')
-                st.download_button(
-                    "⬇️ Download Filtered CSV",
-                    csv,
-                    "filtered_data.csv",
-                    "text/csv",
-                    key='download_filtered'
-                )
-            
+            st.dataframe(filtered_df, use_container_width=True, height=500)
+
+            csv = filtered_df.to_csv().encode("utf-8")
+            st.download_button(
+                "⬇️ Download CSV",
+                csv,
+                "filtered_data.csv",
+                "text/csv",
+                key="download_filtered"
+            )
+
     except Exception as e:
         st.error(f"Error fetching data: {e}")
