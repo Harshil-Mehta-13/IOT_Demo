@@ -148,8 +148,7 @@ if app_mode == "Live Dashboard":
             st.plotly_chart(create_chart(live_df, "pressure", "Pressure Trend", "#88d8b0", 9, 12, height=300), use_container_width=True)
             st.plotly_chart(create_chart(live_df, "vibration", "Vibration Trend", "#6a5acd", 3, 5, height=300), use_container_width=True)
 
-    st_autorefresh = st.experimental_memo  # dummy fallback
-      # --- Auto refresh every 5 sec ---
+    # --- Auto refresh every 5 sec ---
     try:
         from streamlit_autorefresh import st_autorefresh
         st_autorefresh(interval=5000, limit=None, key="refresh_dashboard")
