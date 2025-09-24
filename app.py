@@ -13,9 +13,6 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- Main App Logic ---
-st.title("Air Compressor Monitoring Dashboard ⚙️")
-
 # --- Supabase Connection ---
 @st.cache_resource(ttl="30s")
 def init_connection():
