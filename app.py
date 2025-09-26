@@ -113,7 +113,7 @@ def fetch_data():
         st.error("Supabase client not initialized. Cannot fetch data.")
         return pd.DataFrame()
     try:
-        # Fetch a reasonable number of recent records for the live dashboard
+        # Fetch the 200 most recent records for the live dashboard
         resp = supabase_client.table("air_compressor").select("*").order("timestamp", desc=True).limit(200).execute()
         if not resp.data:
             return pd.DataFrame()
@@ -171,13 +171,15 @@ def create_individual_trend_chart(df, param):
     if not df.empty:
         t = STATUS_THRESHOLDS[param]
         status_color = STATUS_COLORS[get_status(df[param].iloc[-1], param)]
-        fig.add_trace(go.Scatter(x=df.index, y=df[param], name=t['name'], mode="lines", line=dict(width=3, color=status_color)))
+        # Use 'lines+markers' if data is sparse to ensure single points are visible
+        mode = "lines+markers" if len(df) < 20 else "lines"
+        fig.add_trace(go.Scatter(x=df.index, y=df[param], name=t['name'], mode=mode, line=dict(width=3, color=status_color)))
         # Add warning and critical lines for context
         fig.add_hline(y=t["warn"], line_dash="dash", line_color="orange", annotation_text="Warning", annotation_position="bottom right")
         fig.add_hline(y=t["crit"], line_dash="dash", line_color="red", annotation_text="Critical", annotation_position="bottom right")
     
     fig.update_layout(
-        title={'text': f"{STATUS_THRESHOLDS[param]['name']} Trend", 'y':0.9, 'x':0.5, 'xanchor': 'center', 'yanchor': 'top'},
+        title={'text': f"{STATUS_THRESHOLDS[param]['name']} Trend (Recent Readings)", 'y':0.9, 'x':0.5, 'xanchor': 'center', 'yanchor': 'top'},
         template="plotly_dark", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(13, 29, 43, 0.5)",
         height=265, # Reduced height to fit multiple charts
         margin=dict(l=20, r=20, t=50, b=20),
@@ -239,26 +241,13 @@ if app_mode == "Live Monitor":
                     st.markdown('</div>', unsafe_allow_html=True)
 
         with col2:
-            # Filter data to the last hour of AVAILABLE data, not wall-clock time
-            if not data.empty:
-                latest_timestamp = data.index.max()
-                one_hour_before_latest = latest_timestamp - timedelta(hours=1)
-                chart_data = data[data.index >= one_hour_before_latest]
-            else:
-                chart_data = pd.DataFrame()
-
-            if chart_data.empty:
+            # The 'data' DataFrame is already limited to the last 200 points by fetch_data().
+            # This is sufficient for showing a recent trend of available data.
+            for p in STATUS_THRESHOLDS.keys():
                 with st.container():
                     st.markdown('<div class="hud-container">', unsafe_allow_html=True)
-                    st.warning("Insufficient recent data to display charts. Showing latest available log.")
+                    st.plotly_chart(create_individual_trend_chart(data, p), use_container_width=True, config={'displayModeBar': False})
                     st.markdown('</div>', unsafe_allow_html=True)
-            else:
-                # Loop to create an individual chart for each parameter
-                for p in STATUS_THRESHOLDS.keys():
-                    with st.container():
-                        st.markdown('<div class="hud-container">', unsafe_allow_html=True)
-                        st.plotly_chart(create_individual_trend_chart(chart_data, p), use_container_width=True, config={'displayModeBar': False})
-                        st.markdown('</div>', unsafe_allow_html=True)
 
             # System Log
             with st.container():
