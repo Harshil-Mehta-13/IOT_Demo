@@ -165,18 +165,22 @@ def create_meter_gauge(value, param):
     fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", font={'color': "white"}, height=250, margin=dict(l=30, r=30, t=50, b=30))
     return fig
 
-def create_main_trend_chart(df, param_to_show):
+def create_individual_trend_chart(df, param):
     fig = go.Figure()
     if not df.empty:
-        for p in param_to_show:
-            t = STATUS_THRESHOLDS[p]
-            status_color = STATUS_COLORS[get_status(df[p].iloc[-1], p)]
-            fig.add_trace(go.Scatter(x=df.index, y=df[p], name=p.capitalize(), mode="lines", line=dict(width=3, color=status_color)))
+        t = STATUS_THRESHOLDS[param]
+        status_color = STATUS_COLORS[get_status(df[param].iloc[-1], param)]
+        fig.add_trace(go.Scatter(x=df.index, y=df[param], name=param.capitalize(), mode="lines", line=dict(width=3, color=status_color)))
+        # Add warning and critical lines for context
+        fig.add_hline(y=t["warn"], line_dash="dash", line_color="orange", annotation_text="Warning", annotation_position="bottom right")
+        fig.add_hline(y=t["crit"], line_dash="dash", line_color="red", annotation_text="Critical", annotation_position="bottom right")
     
     fig.update_layout(
-        title={'text': "PARAMETER TREND ANALYSIS (LAST HOUR)", 'y':0.9, 'x':0.5, 'xanchor': 'center', 'yanchor': 'top'},
+        title={'text': f"{param.capitalize()} Trend (Last Hour)", 'y':0.9, 'x':0.5, 'xanchor': 'center', 'yanchor': 'top'},
         template="plotly_dark", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(13, 29, 43, 0.5)",
-        height=400, legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        height=265, # Reduced height to fit multiple charts
+        margin=dict(l=20, r=20, t=50, b=20),
+        showlegend=False
     )
     return fig
 
@@ -234,34 +238,36 @@ if app_mode == "Live Monitor":
                     st.markdown('</div>', unsafe_allow_html=True)
 
         with col2:
-            with st.container():
-                st.markdown('<div class="hud-container">', unsafe_allow_html=True)
-                params_to_plot = st.multiselect(
-                    "Select parameters to plot:",
-                    options=list(STATUS_THRESHOLDS.keys()),
-                    default=list(STATUS_THRESHOLDS.keys()),
-                    format_func=lambda x: x.capitalize()
-                )
-                
-                # Filter data for the last 1 hour for the chart
-                ist = pytz.timezone('Asia/Kolkata')
-                now_in_ist = datetime.now(ist)
-                one_hour_ago = now_in_ist - timedelta(hours=1)
-                chart_data = data[data.index >= one_hour_ago]
+            # Filter data for the last 1 hour for the charts
+            ist = pytz.timezone('Asia/Kolkata')
+            now_in_ist = datetime.now(ist)
+            one_hour_ago = now_in_ist - timedelta(hours=1)
+            chart_data = data[data.index >= one_hour_ago]
 
-                if not chart_data.empty:
-                    st.plotly_chart(create_main_trend_chart(chart_data, params_to_plot), use_container_width=True)
-                else:
-                    st.warning("No data recorded in the last hour.")
-                
-                st.markdown('</div>', unsafe_allow_html=True)
+            if chart_data.empty:
+                with st.container():
+                    st.markdown('<div class="hud-container">', unsafe_allow_html=True)
+                    st.warning("No data recorded in the last hour to display charts.")
+                    st.markdown('</div>', unsafe_allow_html=True)
+            else:
+                # Loop to create an individual chart for each parameter
+                for p in STATUS_THRESHOLDS.keys():
+                    with st.container():
+                        st.markdown('<div class="hud-container">', unsafe_allow_html=True)
+                        st.plotly_chart(create_individual_trend_chart(chart_data, p), use_container_width=True, config={'displayModeBar': False})
+                        st.markdown('</div>', unsafe_allow_html=True)
 
+            # System Log
             with st.container():
                 st.markdown('<div class="hud-container">', unsafe_allow_html=True)
                 st.markdown('<div class="log-title">RECENT SYSTEM EVENTS</div>', unsafe_allow_html=True)
+                # Generate log from the full dataset for a better history
                 log_entries = generate_system_log(data)
-                for entry in log_entries:
-                    st.markdown(f'<div class="log-entry">{entry}</div>', unsafe_allow_html=True)
+                if log_entries:
+                    for entry in log_entries:
+                        st.markdown(f'<div class="log-entry">{entry}</div>', unsafe_allow_html=True)
+                else:
+                    st.markdown('<div class="log-entry">No significant status changes detected in recent data.</div>', unsafe_allow_html=True)
                 st.markdown('</div>', unsafe_allow_html=True)
 
 
