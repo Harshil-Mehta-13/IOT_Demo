@@ -146,3 +146,4 @@ elif app_mode == "Database":
             st.download_button("Download CSV", df.to_csv(index=False).encode("utf-8"), "filtered_data.csv", "text/csv", key="download")
     except Exception as e:
         st.error(f"Error fetching data: {e}")
+
