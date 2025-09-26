@@ -18,13 +18,13 @@ st.markdown("""
 .status-warning {background-color: #ffcc00; color: black;}
 .status-critical {background-color: #ff4b4b;}
 .metric-container {
-    background-color: #1E1E1E;
+    background: #fff;
     border-radius: 8px;
     padding: 8px 15px;
     margin: 6px 0;
-    color: white;
-    text-align: center;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+    color: #222;
+    border: 1px solid #ecf1f7;
+    box-shadow: 0 2px 8px rgba(39,121,226,0.06);
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     min-width:100px;
 }
@@ -33,7 +33,8 @@ st.markdown("""
 .sidebar-title {
     font-weight: bold; font-size: 18px; margin-bottom: 10px;
     padding: 8px 12px; border-radius: 6px;
-    background: linear-gradient(to right, #2c5364, #203a43, #0f2027); color:white;
+    background: linear-gradient(to right, #e3ecfa, #f3f7fb); color:#2779e2;
+    border-left: 5px solid #2779e2;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -74,7 +75,7 @@ def render_kpi(param, value):
     </div>
     """, unsafe_allow_html=True)
 
-# --- Improved Professional Gauge ---
+# --- Improved Professional Gauge (Light) ---
 def create_gauge(value, param, height=220, font_size=22):
     key = param.lower()
     if key not in STATUS_THRESHOLDS: return go.Figure()
@@ -85,19 +86,19 @@ def create_gauge(value, param, height=220, font_size=22):
         mode="gauge+number",
         value=(0 if pd.isna(value) else value),
         number={'font': {'size': font_size+4, 'color': color, 'family': 'Segoe UI, Verdana, Geneva, Tahoma, sans-serif'}},
-        title={'text': param.capitalize(), 'font': {'size': 13, 'color': '#505050'}},
+        title={'text': param.capitalize(), 'font': {'size': 14, 'color': '#555'}},
         gauge={
-            'axis': {'range': t["range"], 'tickcolor': "#bbb", 'tickwidth': 2, 'ticklen':6},
+            'axis': {'range': t["range"], 'tickcolor': "#bbb", 'tickwidth': 1.5, 'ticklen': 7},
             'bgcolor': "white",
-            'bar': {'color': color, 'thickness': 0.11},  # slender pointer for modern look
+            'bar': {'color': color, 'thickness': 0.1},
             'borderwidth': 0,
             'steps': [
-                {'range': [t["range"][0], t["warn"]], 'color': "rgba(44,201,126, 0.17)"},      # subtle green
-                {'range': [t["warn"], t["crit"]], 'color': "rgba(255,204,0, 0.15)"},           # subtle yellow
-                {'range': [t["crit"], t["range"][1]], 'color': "rgba(255,75,75, 0.15)"},       # subtle red
+                {'range': [t["range"][0], t["warn"]], 'color': "rgba(44,201,126, 0.10)"},    # softer green
+                {'range': [t["warn"], t["crit"]], 'color': "rgba(255,204,0, 0.12)"},         # soft yellow
+                {'range': [t["crit"], t["range"][1]], 'color': "rgba(255,75,75, 0.12)"},     # soft red
             ],
             'threshold': {
-                'line': {'color': "#e74c3c", 'width': 4},
+                'line': {'color': "#e74c3c", 'width': 3.5},
                 'value': t["crit"],
                 'thickness': 0.7
             }
@@ -105,6 +106,7 @@ def create_gauge(value, param, height=220, font_size=22):
     ))
     fig.update_layout(
         height=height,
+        template="plotly_white",
         paper_bgcolor="rgba(0,0,0,0)",
         font=dict(family="Segoe UI, Verdana, Geneva, Tahoma, sans-serif"),
         margin=dict(t=18, b=10, l=10, r=10),
@@ -118,8 +120,13 @@ def create_trend_chart(df, param):
     fig.add_trace(go.Scatter(x=df.index, y=df[param], mode="lines", line=dict(width=2.5, color=status_color)))
     fig.add_hline(y=t["warn"], line_dash="dash", line_color="orange")
     fig.add_hline(y=t["crit"], line_dash="dash", line_color="red")
-    fig.update_layout(title=f"{param.capitalize()} Trend", height=350, margin=dict(l=30,r=30,t=40,b=30),
-                      template="plotly_white", yaxis=dict(range=t["range"]), showlegend=False, title_x=0.5)
+    fig.update_layout(title=f"{param.capitalize()} Trend", height=350,
+        margin=dict(l=30,r=30,t=40,b=30),
+        template="plotly_white",
+        yaxis=dict(range=t["range"]),
+        showlegend=False, 
+        title_x=0.5
+    )
     return fig
 
 def fetch_data():
