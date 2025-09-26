@@ -19,22 +19,13 @@ st.markdown("""
         font-family: 'Orbitron', sans-serif; /* Futuristic font */
     }
     .main .block-container {
-        padding-top: 1rem; /* Reduced top padding */
+        padding-top: 0.5rem; /* Further reduced top padding */
         padding-bottom: 2rem;
     }
     /* Hide Streamlit elements */
     #MainMenu, footer, header { visibility: hidden; }
 
-    /* --- Custom Containers --- */
-    .hud-container {
-        background-color: #0d1b2a; /* Darker, less saturated blue */
-        border: 1px solid #415a77; /* Subtler border */
-        box-shadow: none; /* Removed glow for a flatter look */
-        border-radius: 10px;
-        padding: 15px;
-        margin-bottom: 20px;
-        height: 100%;
-    }
+    /* --- Custom Elements --- */
     .title-text {
         font-size: 36px;
         font-weight: 700;
@@ -46,6 +37,10 @@ st.markdown("""
         font-size: 14px;
         color: #778da9;
         margin-bottom: 25px;
+    }
+    hr {
+        border-top: 1px solid #415a77;
+        margin: 1rem 0;
     }
 
     /* --- Status Colors --- */
@@ -104,12 +99,6 @@ def get_status(val, param):
     if val >= t["warn"]: return "warning"
     return "normal"
 
-def get_overall_status(latest_row):
-    statuses = [get_status(latest_row[p], p) for p in STATUS_THRESHOLDS.keys()]
-    if "critical" in statuses: return "critical"
-    if "warning" in statuses: return "warning"
-    return "normal"
-
 def create_meter_gauge(value, param):
     t = STATUS_THRESHOLDS[param]
     status = get_status(value, param)
@@ -132,8 +121,7 @@ def create_meter_gauge(value, param):
                 {'range': [t['warn'], t['crit']], 'color': 'rgba(233, 196, 106, 0.2)'},
                 {'range': [t['crit'], t['range'][1]], 'color': 'rgba(231, 111, 81, 0.2)'},
             ]}))
-    # Reduced top margin to fix container spacing issue
-    fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", height=250, margin=dict(l=30, r=30, t=30, b=30))
+    fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", height=250, margin=dict(l=30, r=30, t=40, b=30))
     return fig
 
 def create_individual_trend_chart(df, param):
@@ -150,8 +138,7 @@ def create_individual_trend_chart(df, param):
         title={'text': f"{t['name']} Trend", 'y':0.9, 'x':0.5, 'xanchor': 'center', 'yanchor': 'top'},
         template="plotly_dark", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0.2)",
         height=280,
-        # Reduced top margin
-        margin=dict(l=40, r=20, t=30, b=40),
+        margin=dict(l=40, r=20, t=40, b=40),
         showlegend=False,
         font=dict(color="#e0e1dd")
     )
@@ -181,17 +168,16 @@ if app_mode == "Live Monitor":
         gauge_cols = st.columns(3)
         for i, p in enumerate(STATUS_THRESHOLDS.keys()):
             with gauge_cols[i]:
-                st.markdown('<div class="hud-container">', unsafe_allow_html=True)
                 st.plotly_chart(create_meter_gauge(latest[p], p), use_container_width=True, config={'displayModeBar': False})
-                st.markdown('</div>', unsafe_allow_html=True)
         
+        # Separation line
+        st.markdown("<hr>", unsafe_allow_html=True)
+
         # Row 2: Charts
         chart_cols = st.columns(3)
         for i, p in enumerate(STATUS_THRESHOLDS.keys()):
              with chart_cols[i]:
-                st.markdown('<div class="hud-container">', unsafe_allow_html=True)
                 st.plotly_chart(create_individual_trend_chart(data, p), use_container_width=True, config={'displayModeBar': False})
-                st.markdown('</div>', unsafe_allow_html=True)
         
 
 elif app_mode == "Data Explorer":
