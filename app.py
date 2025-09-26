@@ -39,7 +39,6 @@ h1 {
 </style>
 """, unsafe_allow_html=True)
 
-# --- Supabase Setup ---
 @st.cache_resource(ttl=60)
 def init_supabase():
     return create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
@@ -65,10 +64,10 @@ def get_status(val, param):
     return "normal"
 
 def create_gauge(value, param, height=240):
+    """Create gauge with manual value and status annotation to avoid Plotly errors."""
     key = param.lower()
     if key not in STATUS_THRESHOLDS:
         return go.Figure()
-
     t = STATUS_THRESHOLDS[key]
     status = get_status(value, key)
     color = STATUS_COLORS[status]
@@ -93,18 +92,19 @@ def create_gauge(value, param, height=240):
         },
     ))
 
-    # Overlay value and status as annotation inside gauge
+    # Add manual annotation for value and status inside gauge plot area
     fig.add_annotation(
         x=0.5,
-        y=0.3,
-        text=f"<span style='font-size:32px; color:{color}; font-weight:bold'>{val_display:.2f}</span><br><span style='font-size:16px; color:{color}'>{status_text}</span>",
+        y=0.25,
+        text=f"<span style='font-size:32px; color:{color}; font-weight:bold'>{val_display:.2f}</span><br>"
+             f"<span style='font-size:16px; color:{color}'>{status_text}</span>",
         showarrow=False,
         font=dict(family='Segoe UI, Verdana, Geneva, Tahoma, sans-serif')
     )
 
     fig.update_layout(
         height=height,
-        margin=dict(t=40,b=10,l=10,r=10),
+        margin=dict(t=40, b=10, l=10, r=10),
         template="plotly_white",
         paper_bgcolor="rgba(0,0,0,0)",
     )
@@ -185,6 +185,7 @@ if app_mode == "Live Dashboard":
         st.warning("No data available. Please check your ESP32 connection.")
     else:
         latest = data.iloc[-1]
+
         col_gauges, col_charts = st.columns([1, 3])
 
         with col_gauges:
@@ -229,5 +230,6 @@ elif app_mode == "Database":
             st.dataframe(df, use_container_width=True, height=500)
             csv = df.to_csv(index=False).encode("utf-8")
             st.download_button("Download CSV", csv, "filtered_data.csv", "text/csv", key="download")
+
     except Exception as e:
         st.error(f"Error fetching data: {e}")
