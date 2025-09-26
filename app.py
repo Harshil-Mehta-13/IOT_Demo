@@ -51,7 +51,6 @@ STATUS_THRESHOLDS = {
 }
 STATUS_COLORS = {"normal":"#2ec27e", "warning":"#ffcc00", "critical":"#ff4b4b"}
 
-# --- Helpers ---
 def get_status(val, param):
     key = param.lower()
     if key not in STATUS_THRESHOLDS or pd.isna(val):
@@ -75,30 +74,42 @@ def render_kpi(param, value):
     </div>
     """, unsafe_allow_html=True)
 
-def create_gauge(value, param, height=220, font_size=22):
+# --- Professional Gauge ---
+def create_gauge(value, param, height=230, font_size=28):
     key = param.lower()
     if key not in STATUS_THRESHOLDS: return go.Figure()
     t = STATUS_THRESHOLDS[key]
     status = get_status(value, key)
     color = STATUS_COLORS[status]
-
     fig = go.Figure(go.Indicator(
         mode="gauge+number",
         value=(0 if pd.isna(value) else value),
-        number={'font': {'size': font_size, 'color': color}},
-        title={'text': param.capitalize(), 'font': {'size': 15}},
+        number={'font': {'size': font_size, 'color': color, 'family': 'Segoe UI, Verdana, Geneva, Tahoma, sans-serif'}},
+        title={'text': param.capitalize(), 'font': {'size': 15, 'color': '#666'}},
         gauge={
-            'axis': {'range': t["range"], 'tickcolor': "darkgray"},
-            'bar': {'color': color, 'thickness': 0.3},
+            'axis': {'range': t["range"], 'tickcolor': "#888", 'tickwidth': 1, 'ticklen': 6},
+            'bgcolor': "white",
+            'bar': {'color': color, 'thickness': 0.13},
+            'borderwidth': 0,
             'steps': [
-                {'range': [t["range"][0], t["warn"]], 'color': "#d4f7df"},   # safe
-                {'range': [t["warn"], t["crit"]], 'color': "#ffe680"},      # warning
-                {'range': [t["crit"], t["range"][1]], 'color': "#ff9999"},  # critical
+                {'range': [t["range"][0], t["warn"]], 'color': "rgba(44,201,126,0.18)"},
+                {'range': [t["warn"], t["crit"]], 'color': "rgba(255,204,0,0.18)"},
+                {'range': [t["crit"], t["range"][1]], 'color': "rgba(255,75,75,0.18)"},
             ],
-            'threshold': {'line': {'color': "red", 'width': 4}, 'value': t["crit"]}
+            'threshold': {
+                'line': {'color': "#e74c3c", 'width': 4},
+                'value': t["crit"],
+                'thickness': 0.8
+            }
         }
     ))
-    fig.update_layout(height=height, margin=dict(t=25, b=10, l=10, r=10), template="plotly_white")
+    fig.update_layout(
+        height=height,
+        margin=dict(t=22, b=10, l=10, r=10),
+        template="plotly_white",
+        paper_bgcolor="rgba(0,0,0,0)",
+        font=dict(family="Segoe UI, Verdana, Geneva, Tahoma, sans-serif"),
+    )
     return fig
 
 def create_trend_chart(df, param):
@@ -150,14 +161,12 @@ if app_mode == "Live Dashboard":
             for p in ["temperature","pressure","vibration"]:
                 render_kpi(p, latest[p])
 
-        # Gauges on right
+        # Professional Gauges on right, stacked vertically
         with col_gauges:
-            row = st.columns(3)
-            for i,p in enumerate(["temperature","pressure","vibration"]):
-                with row[i]:
-                    st.plotly_chart(create_gauge(latest[p], p), use_container_width=True)
+            for p in ["temperature","pressure","vibration"]:
+                st.plotly_chart(create_gauge(latest[p], p), use_container_width=True)
 
-        # Trend charts stacked
+        # Trend charts stacked below
         for p in ["temperature","pressure","vibration"]:
             st.plotly_chart(create_trend_chart(data, p), use_container_width=True)
 
