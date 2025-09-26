@@ -69,8 +69,8 @@ supabase_client = init_supabase()
 # --- Constants & Thresholds ---
 STATUS_THRESHOLDS = {
     "temperature": {"name": "Motor Temperature", "unit": "°C", "warn": 60, "crit": 80, "range": [0, 100]},
-    "pressure": {"name": "Output Pressure", "unit": "bar", "warn": 9, "crit": 12, "range": [0, 15]},
-    "vibration": {"name": "Vibration Level", "unit": "mm/s", "warn": 3, "crit": 5, "range": [0, 8]},
+    "pressure": {"name": "Pressure", "unit": "bar", "warn": 9, "crit": 12, "range": [0, 15]},
+    "vibration": {"name": "Motor Vibration", "unit": "mm/s", "warn": 3, "crit": 5, "range": [0, 8]},
 }
 STATUS_COLORS = {"normal": "#2a9d8f", "warning": "#e9c46a", "critical": "#e76f51"}
 
