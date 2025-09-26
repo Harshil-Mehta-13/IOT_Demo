@@ -7,28 +7,53 @@ import pytz
 from datetime import datetime, timedelta
 
 # --- Config & Styling ---
-st.set_page_config(page_title="Air Compressor Dashboard", page_icon="⚙️", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="Air Compressor Dashboard", page_icon="⚙️", layout="wide")
+
 st.markdown("""
 <style>
 #MainMenu, footer, header {visibility: hidden;}
+
+.metric-container {
+    background: linear-gradient(145deg, #2c2c2c, #1a1a1a);
+    border-radius: 10px;
+    padding: 8px 15px;
+    margin: 6px;
+    color: #f5f5f5;
+    text-align: center;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.35);
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+    min-width: 100px;
+}
+.metric-container h4 {
+    font-size: 14px;
+    margin: 2px 0;
+    color: #bbbbbb;
+}
+.metric-container h2 {
+    font-size: 22px;
+    margin: 4px 0;
+}
 .status-badge {
-    font-weight: 700; border-radius: 12px; padding: 4px 12px; font-size: 13px; display: inline-block;
+    font-weight: 600;
+    border-radius: 10px;
+    padding: 2px 8px;
+    font-size: 11px;
+    display: inline-block;
     color: white;
 }
 .status-normal {background-color: #2ec27e;}
 .status-warning {background-color: #ffcc00; color: black;}
 .status-critical {background-color: #ff4b4b;}
-.metric-container {
-    background-color: #1E1E1E;
-    border-radius: 8px;
-    padding: 10px 20px;
-    margin-right: 12px;
-    color: white;
-    text-align: center;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    user-select:none;
-    min-width:120px;
+
+.sidebar-title {
+    font-size: 20px;
+    font-weight: bold;
+    margin-bottom: 15px;
+}
+.sidebar-section {
+    border-bottom: 1px solid #444;
+    padding-bottom: 10px;
+    margin-bottom: 15px;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -44,75 +69,74 @@ STATUS_THRESHOLDS = {
     "pressure": {"warn": 9, "crit": 12, "range": [0, 15]},
     "vibration": {"warn": 3, "crit": 5, "range": [0, 8]},
 }
-STATUS_COLORS = {"normal":"#2ec27e", "warning":"#ffcc00", "critical":"#ff4b4b"}
+STATUS_COLORS = {"normal": "#2ec27e", "warning": "#ffcc00", "critical": "#ff4b4b"}
 
 def get_status(val, param):
-    thresh = STATUS_THRESHOLDS[param]
-    if val > thresh["crit"]:
+    t = STATUS_THRESHOLDS[param]
+    if val > t["crit"]:
         return "critical"
-    elif val > thresh["warn"]:
+    elif val > t["warn"]:
         return "warning"
     return "normal"
 
 def render_kpi(param, value):
     status = get_status(value, param)
-    status_class = f"status-{status}"
     st.markdown(f"""
     <div class="metric-container">
         <h4>{param.capitalize()}</h4>
         <h2>{value:.2f}</h2>
-        <span class="status-badge {status_class}">{status.capitalize()}</span>
+        <span class="status-badge status-{status}">{status.capitalize()}</span>
     </div>
     """, unsafe_allow_html=True)
 
 def create_pointer_gauge(param, value):
-    thresh = STATUS_THRESHOLDS[param]
+    t = STATUS_THRESHOLDS[param]
     status = get_status(value, param)
     color = STATUS_COLORS[status]
 
     fig = go.Figure(go.Indicator(
         mode="gauge+number",
         value=value,
-        number={'font': {'size': 28, 'color': color}},
-        title={'text': param.capitalize(), 'font': {'size': 22}},
+        number={'font': {'size': 22, 'color': color}},
+        title={'text': param.capitalize(), 'font': {'size': 18}},
         gauge={
-            'axis': {'range': thresh["range"], 'tickwidth': 2, 'tickcolor': "darkgray"},
-            'bar': {'color': color, 'thickness': 0.3},
-            'bgcolor': "#eeeeee",
-            'borderwidth': 2,
+            'axis': {'range': t["range"], 'tickwidth': 1, 'tickcolor': "darkgray"},
+            'bar': {'color': color},
+            'bgcolor': "white",
+            'borderwidth': 1,
             'bordercolor': "gray",
             'steps': [
-                {'range': [thresh["range"][0], thresh["warn"]], 'color': "#a8e6cf"},
-                {'range': [thresh["warn"], thresh["crit"]], 'color': "#ffd3b6"},
-                {'range': [thresh["crit"], thresh["range"][1]], 'color': "#ff8b94"},
+                {'range': [t["range"][0], t["warn"]], 'color': "#a8e6cf"},
+                {'range': [t["warn"], t["crit"]], 'color': "#ffd3b6"},
+                {'range': [t["crit"], t["range"][1]], 'color': "#ff8b94"},
             ],
             'threshold': {
-                'line': {'color': "red", 'width': 4},
+                'line': {'color': "red", 'width': 3},
                 'thickness': 0.8,
-                'value': thresh["crit"]
+                'value': t["crit"]
             }
-        }
+        },
+        domain={'x': [0, 1], 'y': [0, 1]}
     ))
-    fig.update_layout(height=300, margin=dict(t=50, b=0, l=0, r=0), template="plotly_white")
+    fig.update_layout(height=220, margin=dict(t=30, b=10, l=10, r=10), template="plotly_white")
     return fig
 
 def create_trend_chart(df, param):
-    thresh = STATUS_THRESHOLDS[param]
+    t = STATUS_THRESHOLDS[param]
     status_color = STATUS_COLORS[get_status(df[param].iloc[-1], param)]
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=df.index, y=df[param], mode="lines", line=dict(width=3, color=status_color)))
-    fig.add_hline(y=thresh["warn"], line_dash="dash", line_color="orange", annotation_text="Warning", annotation_position="top left")
-    fig.add_hline(y=thresh["crit"], line_dash="dash", line_color="red", annotation_text="Critical", annotation_position="top left")
+    fig.add_hline(y=t["warn"], line_dash="dash", line_color="orange", annotation_text="Warning", annotation_position="top left")
+    fig.add_hline(y=t["crit"], line_dash="dash", line_color="red", annotation_text="Critical", annotation_position="top left")
     fig.update_layout(
         title=f"{param.capitalize()} Trend",
-        height=450,
-        margin=dict(l=30, r=30, t=50, b=30),
+        height=300,
+        margin=dict(l=30, r=30, t=40, b=30),
         template="plotly_white",
-        yaxis=dict(range=thresh["range"]),
+        yaxis=dict(range=t["range"]),
         xaxis_title="Time",
         showlegend=False,
-        title_x=0.5,
-        transition=dict(duration=500, easing='cubic-in-out')
+        title_x=0.5
     )
     return fig
 
@@ -129,12 +153,19 @@ def fetch_data():
         st.error(f"Error fetching data: {e}")
         return pd.DataFrame()
 
-# --- Main ---
-# Reserve space above title for KPIs
-st.markdown("<div style='margin-top:30px;'></div>", unsafe_allow_html=True)
+# --- Sidebar ---
+with st.sidebar:
+    st.markdown("<div class='sidebar-title'>⚙️ Dashboard Menu</div>", unsafe_allow_html=True)
+    app_mode = st.radio(" ", ["📊 Live Dashboard", "🗄 Database"], label_visibility="collapsed")
+    st.markdown("<div class='sidebar-section'></div>", unsafe_allow_html=True)
+    st.info("Monitor your **Air Compressor** health in real time.")
 
-# KPIs Row full width above everything
+# --- Main ---
+st.title("⚙️ Air Compressor Monitoring Dashboard")
+
 data = fetch_data()
+
+# KPIs BELOW TITLE
 if not data.empty:
     latest = data.iloc[-1]
     kpi_cols = st.columns(3)
@@ -142,36 +173,25 @@ if not data.empty:
         with kpi_cols[i]:
             render_kpi(p, latest[p])
 
-# Main Title after KPIs
-st.title("⚙️ Air Compressor Monitoring Dashboard")
-
-with st.sidebar:
-    st.header("Navigation")
-    app_mode = st.radio("View Mode", ["Live Dashboard", "Database"])
-
-if app_mode == "Live Dashboard":
+if app_mode == "📊 Live Dashboard":
     st_autorefresh(interval=5000, key="dashboard_refresh")
 
     if data.empty:
         st.warning("No data available. Please check your ESP32 connection.")
     else:
-        # Two columns: gauges left, charts right
-        col_gauges, col_charts = st.columns([1, 3])
+        # Gauges Row
+        gcols = st.columns(3)
+        for i, p in enumerate(["temperature", "pressure", "vibration"]):
+            with gcols[i]:
+                st.plotly_chart(create_pointer_gauge(p, latest[p]), use_container_width=True)
 
-        with col_gauges:
-            for param in ["temperature", "pressure", "vibration"]:
-                fig = create_pointer_gauge(param, latest[param])
-                st.plotly_chart(fig, use_container_width=True)
+        # Charts stacked vertically
+        st.subheader("📈 Live Trends")
+        for param in ["temperature", "pressure", "vibration"]:
+            st.plotly_chart(create_trend_chart(data, param), use_container_width=True)
 
-        with col_charts:
-            tabs = st.tabs(["Temperature", "Pressure", "Vibration"])
-            for param, tab in zip(["temperature", "pressure", "vibration"], tabs):
-                with tab:
-                    st.plotly_chart(create_trend_chart(data, param), use_container_width=True)
-
-elif app_mode == "Database":
+elif app_mode == "🗄 Database":
     st.subheader("Explore Raw Data")
-
     start_col, end_col, param_col = st.columns(3)
     with start_col:
         start_date = st.date_input("Start Date", datetime.now().date() - timedelta(days=7))
