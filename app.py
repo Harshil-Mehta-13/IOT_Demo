@@ -248,6 +248,11 @@ elif app_mode == "Data Explorer":
             if df.empty:
                 st.warning("No data found in the selected date range.")
             else:
+                # Convert timestamp from UTC to IST
+                df['timestamp'] = pd.to_datetime(df['timestamp']).dt.tz_convert(ist)
+                # Format the timestamp for display
+                df['timestamp'] = df['timestamp'].dt.strftime('%d-%m-%Y %H:%M:%S')
+                
                 display_cols = ["timestamp"] + selected_params if selected_params else ["timestamp"]
                 st.dataframe(df[display_cols], use_container_width=True, height=500)
                 csv = df[display_cols].to_csv(index=False).encode('utf-8')
