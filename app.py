@@ -11,9 +11,6 @@ st.set_page_config(page_title="Air Compressor Dashboard", page_icon="⚙️", la
 st.markdown("""
 <style>
 #MainMenu, footer, header {visibility: hidden;}
-.status-badge {
-    font-weight: 700; border-radius: 12px; padding: 2px 8px; font-size: 11px; display: inline-block; color: white;
-}
 .metric-container {
     background-color: #fff;
     border-radius: 8px;
@@ -46,6 +43,7 @@ STATUS_THRESHOLDS = {
     "vibration": {"warn": 3, "crit": 5, "range": [0, 8]},
 }
 STATUS_COLORS = {"normal":"#2ec27e", "warning":"#ffcc00", "critical":"#ff4b4b"}
+STATUS_TEXT = {"normal":"Normal", "warning":"Warning", "critical":"Critical"}
 
 def get_status(val, param):
     key = param.lower()
@@ -56,8 +54,8 @@ def get_status(val, param):
     elif val > t["warn"]: return "warning"
     return "normal"
 
-# Gauge with embedded KPI (big value + color)
-def create_gauge(value, param, height=280):
+# Gauge with embedded number + status text annotation
+def create_gauge(value, param, height=240):
     key = param.lower()
     if key not in STATUS_THRESHOLDS:
         return go.Figure()
@@ -65,21 +63,24 @@ def create_gauge(value, param, height=280):
     t = STATUS_THRESHOLDS[key]
     status = get_status(value, key)
     color = STATUS_COLORS[status]
+    status_text = STATUS_TEXT[status]
+    val_display = 0 if pd.isna(value) else value
 
     fig = go.Figure(go.Indicator(
         mode="gauge+number",
-        value=0 if pd.isna(value) else value,
-        number={'font': {'size': 46, 'color': color, 'family': 'Segoe UI, Verdana, Geneva, Tahoma, sans-serif'}},
+        value=val_display,
+        number={'font': {'size': 40, 'color': color, 'family': 'Segoe UI, Verdana, Geneva, Tahoma, sans-serif'},
+                'suffix': f"\n{status_text}"},
         title={'text': f"<b>{param.capitalize()}</b>", 'font': {'size': 18, 'color': '#444'}},
         gauge={
             'axis': {'range': t["range"], 'tickcolor': "#999", 'tickwidth': 1, 'ticklen': 7},
             'bgcolor': "white",
-            'borderwidth': 0,
             'bar': {'color': color, 'thickness': 0.12},
+            'borderwidth': 0,
             'steps': [
-                {'range': [t["range"][0], t["warn"]], 'color': "rgba(44,201,126,0.15)"},
-                {'range': [t["warn"], t["crit"]], 'color': "rgba(255,204,0,0.15)"},
-                {'range': [t["crit"], t["range"][1]], 'color': "rgba(255,75,75,0.15)"},
+                {'range': [t["range"][0], t["warn"]], 'color': "rgba(44,201,126, 0.15)"},
+                {'range': [t["warn"], t["crit"]], 'color': "rgba(255,204,0, 0.15)"},
+                {'range': [t["crit"], t["range"][1]], 'color': "rgba(255,75,75, 0.15)"},
             ],
             'threshold': {
                 'line': {'color': "#e74c3c", 'width': 4},
@@ -88,6 +89,7 @@ def create_gauge(value, param, height=280):
             }
         }
     ))
+
     fig.update_layout(
         height=height,
         margin=dict(t=30, b=10, l=10, r=10),
@@ -106,7 +108,7 @@ def create_trend_chart(df, param):
     fig.add_hline(y=t["crit"], line_dash="dash", line_color="red", annotation_text="Critical", annotation_position="top left")
     fig.update_layout(
         title=f"{param.capitalize()} Trend",
-        height=400,
+        height=350,
         margin=dict(l=40, r=40, t=50, b=30),
         template="plotly_white",
         yaxis=dict(range=t["range"]),
@@ -147,7 +149,7 @@ if app_mode == "Live Dashboard":
     else:
         latest = data.iloc[-1]
 
-        # Layout: Gauges vertically stacked left, charts stacked right column
+        # Layout: Two columns (left gauges stacked, right charts stacked)
         col_gauges, col_charts = st.columns([1, 3])
 
         with col_gauges:
@@ -160,6 +162,7 @@ if app_mode == "Live Dashboard":
 
 elif app_mode == "Database":
     st.subheader("Explore Raw Data")
+
     start_col, end_col, param_col = st.columns(3)
     with start_col:
         start_date = st.date_input("Start Date", datetime.now().date() - timedelta(days=7))
