@@ -4,7 +4,7 @@ from supabase import create_client
 import plotly.graph_objects as go
 import pytz
 from datetime import datetime, timedelta
-import time
+from streamlit_autorefresh import st_autorefresh
 
 # --- Config & Styling ---
 st.set_page_config(page_title="Compressor Control", page_icon="🔩", layout="wide", initial_sidebar_state="expanded")
@@ -19,21 +19,18 @@ st.markdown("""
         font-family: 'Orbitron', sans-serif; /* Futuristic font */
     }
     .main .block-container {
-        padding-top: 0rem; /* Removed top padding to lift dashboard */
+        padding-top: 0rem;
         padding-bottom: 2rem;
     }
-    /* Hide Streamlit elements, keeping header for sidebar toggle */
     #MainMenu, footer { visibility: hidden; }
     
-    /* --- Custom Elements --- */
     .title-container {
-        margin-top: -70px; /* Pulls the entire content block upwards */
+        margin-top: -70px;
     }
     .title-text {
         font-size: 36px;
         font-weight: 700;
-        color: #e0e1dd; /* Off-white for less harsh contrast */
-        text-shadow: none; /* Removed glow */
+        color: #e0e1dd;
         margin-bottom: 5px;
     }
     .subtitle-text {
@@ -46,7 +43,6 @@ st.markdown("""
         margin: 1rem 0;
     }
 
-    /* --- Status Colors --- */
     .status-normal { background-color: #2a9d8f; }
     .status-warning { background-color: #e9c46a; color: #0d1b2a !important; }
     .status-critical { background-color: #e76f51; }
@@ -75,7 +71,7 @@ STATUS_THRESHOLDS = {
 STATUS_COLORS = {"normal": "#2a9d8f", "warning": "#e9c46a", "critical": "#e76f51"}
 
 # --- Helper Functions ---
-@st.cache_data(ttl=5) # Cache data for 5 seconds to prevent re-fetching on every script run
+@st.cache_data(ttl=5)
 def fetch_data():
     if not supabase_client:
         return pd.DataFrame()
@@ -88,7 +84,7 @@ def fetch_data():
         ist = pytz.timezone('Asia/Kolkata')
         df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.tz_convert(ist)
         return df.set_index("timestamp").sort_index()
-    except Exception as e:
+    except Exception:
         return pd.DataFrame()
 
 def get_status(val, param):
@@ -111,7 +107,7 @@ def create_meter_gauge(value, param):
         number={'font': {'size': 36, 'color': color}},
         gauge={
             'axis': {'range': t['range'], 'tickwidth': 1, 'tickcolor': "#778da9"},
-            'bar': {'color': color, 'thickness': 1}, # Set bar thickness to fill the gauge track
+            'bar': {'color': color, 'thickness': 1},
             'bgcolor': "rgba(0,0,0,0)",
             'borderwidth': 1,
             'bordercolor': "#415a77",
@@ -155,7 +151,7 @@ def create_individual_trend_chart(df, param):
         margin=dict(l=40, r=20, t=50, b=40),
         showlegend=False,
         font=dict(color="#e0e1dd"),
-        yaxis={'range': [0, t['range'][1]]}, # Set Y-axis to start from 0
+        yaxis={'range': [0, t['range'][1]]},
         title={
             'text': title_text,
             'y':0.95,
@@ -174,48 +170,44 @@ with st.sidebar:
 
 # --- Main Application ---
 if app_mode == "Live Monitor":
-    
-    # --- Draw the static layout with placeholders once ---
+    # Auto refresh every 5 seconds
+    st_autorefresh(interval=5000, key="refresh")
+
+    # --- Draw layout ---
     header_placeholder = st.empty()
     gauge_placeholders = [col.empty() for col in st.columns(3)]
     st.markdown("<hr>", unsafe_allow_html=True)
     chart_placeholders = [col.empty() for col in st.columns(3)]
 
-    # --- Live update loop ---
-    while True:
-        data = fetch_data()
+    # --- Fetch & render ---
+    data = fetch_data()
 
-        with header_placeholder.container():
-            if data.empty:
-                st.error("SYSTEM OFFLINE - NO DATA RECEIVED")
-            else:
-                latest = data.iloc[-1]
-                st.markdown(f'''
-                <div class="title-container">
-                    <div class="title-text">COMPRESSOR UNIT C-1337 MONITOR</div>
-                    <div class="subtitle-text">Last Communication: {latest.name.strftime("%Y-%m-%d %H:%M:%S")}</div>
-                </div>
-                ''', unsafe_allow_html=True)
-                
-                # Filter data for charts to show the last hour relative to the most recent data point
-                latest_timestamp = data.index.max()
-                one_hour_ago = latest_timestamp - timedelta(hours=1)
-                chart_data = data[data.index >= one_hour_ago]
+    with header_placeholder.container():
+        if data.empty:
+            st.error("SYSTEM OFFLINE - NO DATA RECEIVED")
+        else:
+            latest = data.iloc[-1]
+            st.markdown(f'''
+            <div class="title-container">
+                <div class="title-text">COMPRESSOR UNIT C-1337 MONITOR</div>
+                <div class="subtitle-text">Last Communication: {latest.name.strftime("%Y-%m-%d %H:%M:%S")}</div>
+            </div>
+            ''', unsafe_allow_html=True)
+            
+            latest_timestamp = data.index.max()
+            one_hour_ago = latest_timestamp - timedelta(hours=1)
+            chart_data = data[data.index >= one_hour_ago]
 
-                # --- Update Gauges ---
-                for i, p in enumerate(STATUS_THRESHOLDS.keys()):
-                    with gauge_placeholders[i]:
-                        fig = create_meter_gauge(latest[p], p)
-                        st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
+            # Gauges
+            for i, p in enumerate(STATUS_THRESHOLDS.keys()):
+                with gauge_placeholders[i]:
+                    st.plotly_chart(create_meter_gauge(latest[p], p), use_container_width=True, config={'displayModeBar': False})
 
-                # --- Update Charts ---
-                for i, p in enumerate(STATUS_THRESHOLDS.keys()):
-                    with chart_placeholders[i]:
-                        fig = create_individual_trend_chart(chart_data, p)
-                        st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
-        
-        time.sleep(5)
-        
+            # Charts
+            for i, p in enumerate(STATUS_THRESHOLDS.keys()):
+                with chart_placeholders[i]:
+                    st.plotly_chart(create_individual_trend_chart(chart_data, p), use_container_width=True, config={'displayModeBar': False})
+
 elif app_mode == "Data Explorer":
     st.subheader("Explore Raw Sensor Data")
     
@@ -257,4 +249,3 @@ elif app_mode == "Data Explorer":
             st.error(f"An error occurred while fetching data: {e}")
     else:
         st.error("Supabase client not initialized. Cannot fetch data.")
-
