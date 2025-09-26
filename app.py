@@ -2,10 +2,11 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
+import plotly.express as px
 
 # -------------------------------
 # Simulated live data fetch
-# Replace with DB query for real IoT data
+# Replace with your Supabase query
 # -------------------------------
 def get_live_data(n=100):
     timestamp = pd.date_range(end=pd.Timestamp.now(), periods=n, freq="T")
@@ -61,18 +62,21 @@ def kpi_card(title, value, unit):
     )
 
 # -------------------------------
-# Main UI
+# Main App
 # -------------------------------
-st.set_page_config(layout="wide")
+st.set_page_config(page_title="IoT Dashboard", layout="wide")
 st.title("🌡️ IoT Live Dashboard")
 
-data = get_live_data(100)
+# Fetch Data
+data = get_live_data(100)  # Replace with Supabase fetch
 latest = data.iloc[-1]
 
-# Layout: 2 columns
+# -------------------------------
+# Layout: Gauges + KPIs
+# -------------------------------
 col1, col2 = st.columns([2, 1])
 
-# Gauges in one row (left side)
+# Gauges row (left)
 with col1:
     g1, g2, g3 = st.columns(3)
     with g1:
@@ -82,8 +86,30 @@ with col1:
     with g3:
         st.plotly_chart(create_gauge(latest["vibration"], "Vibration", 0, 10, "mm/s"), use_container_width=True)
 
-# KPIs stacked vertically (right side)
+# KPIs stacked vertically (right)
 with col2:
     kpi_card("Avg Temperature", data["temperature"].mean(), "°C")
     kpi_card("Avg Pressure", data["pressure"].mean(), "bar")
     kpi_card("Avg Vibration", data["vibration"].mean(), "mm/s")
+
+# -------------------------------
+# Trend Charts (last 100 entries)
+# -------------------------------
+st.subheader("📊 Trends (Last 100 readings)")
+
+c1, c2, c3 = st.columns(3)
+
+with c1:
+    fig_temp = px.line(data, x="timestamp", y="temperature", title="Temperature Trend", markers=True)
+    fig_temp.update_layout(height=300, margin=dict(l=10, r=10, t=40, b=10))
+    st.plotly_chart(fig_temp, use_container_width=True)
+
+with c2:
+    fig_press = px.line(data, x="timestamp", y="pressure", title="Pressure Trend", markers=True)
+    fig_press.update_layout(height=300, margin=dict(l=10, r=10, t=40, b=10))
+    st.plotly_chart(fig_press, use_container_width=True)
+
+with c3:
+    fig_vib = px.line(data, x="timestamp", y="vibration", title="Vibration Trend", markers=True)
+    fig_vib.update_layout(height=300, margin=dict(l=10, r=10, t=40, b=10))
+    st.plotly_chart(fig_vib, use_container_width=True)
