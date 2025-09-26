@@ -6,10 +6,9 @@ import plotly.graph_objects as go
 import pytz
 from datetime import datetime, timedelta
 
-# --- Config & Theming ---
+# --- Config & Styling ---
 st.set_page_config(page_title="Air Compressor Dashboard", page_icon="⚙️", layout="wide", initial_sidebar_state="expanded")
 
-# Stylish subtle background gradient and card styles
 st.markdown("""
 <style>
 body {
@@ -21,14 +20,14 @@ body {
   background: transparent;
 }
 .main > div.block-container {
-  padding-top: 30px;
-  padding-bottom: 30px;
+  padding-top: 25px;
+  padding-bottom: 25px;
 }
 .metric-container {
   background: white;
   border-radius: 12px;
   padding: 15px 20px;
-  margin: 8px 0;
+  margin: 12px 0;
   box-shadow:
     0 2.8px 2.2px rgba(39, 57, 93, 0.03),
     0 6.7px 5.3px rgba(39, 57, 93, 0.05),
@@ -38,22 +37,25 @@ body {
     0 100px 80px rgba(39, 57, 93, 0.18);
 }
 .metric-title {
-  font-size: 15px;
-  font-weight: 600;
+  font-size: 16px;
+  font-weight: 700;
   color: #52657a;
-  margin-bottom: 6px;
+  margin-bottom: 12px;
 }
 .metric-value {
-  font-size: 30px;
-  font-weight: 700;
+  font-size: 34px;
+  font-weight: 800;
   color: #102a43;
 }
 .status-badge {
   font-weight: 700;
-  border-radius: 14px;
-  padding: 3px 14px;
-  font-size: 13px;
+  border-radius: 18px;
+  padding: 6px 18px;
+  font-size: 14px;
   display: inline-block;
+  margin-top: 12px;
+  user-select:none;
+  cursor: default;
 }
 .status-normal {background-color: #2dce89; color: white;}
 .status-warning {background-color: #f0ad4e; color: #3c2e1f;}
@@ -61,11 +63,13 @@ body {
 .sidebar .sidebar-content {
   background: linear-gradient(180deg, #edf2f7 0%, #e2e8f0 100%);
   border-radius: 10px;
-  padding: 15px 20px;
+  padding: 20px 25px;
+  margin-bottom: 20px;
 }
 h1 {
   color: #102a43;
-  font-weight: 700;
+  font-weight: 800;
+  margin-bottom: 20px;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -74,6 +78,7 @@ h1 {
 @st.cache_resource(ttl=30)
 def init_supabase():
     return create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
+
 supabase_client = init_supabase()
 
 STATUS_THRESHOLDS = {
@@ -81,112 +86,142 @@ STATUS_THRESHOLDS = {
     "pressure": {"warn": 9, "crit": 12, "range": [0, 15]},
     "vibration": {"warn": 3, "crit": 5, "range": [0, 8]},
 }
-STATUS_COLORS = {"normal":"#2dce89", "warning":"#f0ad4e", "critical":"#e55353"}
-STATUS_TEXT = {"normal":"Normal", "warning":"Warning", "critical":"Critical"}
+
+STATUS_COLORS = {"normal": "#2dce89", "warning": "#f0ad4e", "critical": "#e55353"}
+STATUS_TEXT = {"normal": "Normal", "warning": "Warning", "critical": "Critical"}
+
 
 def get_status(val, param):
     key = param.lower()
     if key not in STATUS_THRESHOLDS or pd.isna(val):
         return "normal"
     t = STATUS_THRESHOLDS[key]
-    if val > t["crit"]: return "critical"
-    elif val > t["warn"]: return "warning"
-    return "normal"
+    if val > t["crit"]:
+        return "critical"
+    elif val > t["warn"]:
+        return "warning"
+    else:
+        return "normal"
 
-def render_kpi(param, value):
-    status = get_status(value, param)
-    status_class = f"status-{status}"
-    val_str = "N/A" if pd.isna(value) else f"{value:.2f}"
-    st.markdown(f"""
-    <div class="metric-container">
-        <div class="metric-title">{param.capitalize()}</div>
-        <div class="metric-value">{val_str}</div>
-        <div class="status-badge {status_class}">{STATUS_TEXT[status]}</div>
-    </div>
-    """, unsafe_allow_html=True)
 
-def create_gauge(value, param, height=230):
+def create_gauge(value, param, height=240):
     key = param.lower()
-    if key not in STATUS_THRESHOLDS: return go.Figure()
+    if key not in STATUS_THRESHOLDS:
+        return go.Figure()
+
     t = STATUS_THRESHOLDS[key]
     status = get_status(value, key)
     color = STATUS_COLORS[status]
     status_text = STATUS_TEXT[status]
     val_display = 0 if pd.isna(value) else value
 
-    fig = go.Figure(go.Indicator(
-        mode="gauge+number",
-        value=val_display,
-        number={'font': {'size': 46, 'color': color, 'family': 'Segoe UI, Verdana, Geneva, Tahoma, sans-serif'},
-                'suffix': f"<br><span style='font-size:14px;color:#555'>{status_text}</span>"},
-        title={'text': f"<b>{param.capitalize()}</b>", 'font': {'size': 18, 'color': '#334e68'}},
-        gauge={
-            'axis': {'range': t["range"], 'tickcolor': "#777", 'tickwidth': 1, 'ticklen': 7,
-                     'showline': True, 'linecolor': '#ddd', 'linewidth': 2},
-            'bgcolor': "#f7fafc",
-            'borderwidth': 0,
-            'bar': {'color': color, 'thickness': 0.15},
-            'steps': [
-                {'range': [t["range"][0], t["warn"]], 'color': "rgba(45,206,137, 0.2)"},
-                {'range': [t["warn"], t["crit"]], 'color': "rgba(240,173,78, 0.18)"},
-                {'range': [t["crit"], t["range"][1]], 'color': "rgba(229,83,83, 0.18)"},
-            ],
-            'threshold': {
-                'line': {'color': "#cc3f3f", 'width': 5},
-                'value': t["crit"],
-                'thickness': 0.7
-            }
-        }
-    ))
+    fig = go.Figure(
+        go.Indicator(
+            mode="gauge+number",
+            value=val_display,
+            number={
+                "font": {"size": 48, "color": color, "family": "Segoe UI, Verdana, Geneva, Tahoma, sans-serif"},
+                "suffix": f"<br><span style='font-size:16px;color:#555;font-weight:600'>{status_text}</span>",
+                "valueformat": ".2f",
+            },
+            title={"text": f"<b>{param.capitalize()}</b>", "font": {"size": 20, "color": "#334e68"}},
+            gauge={
+                "axis": {"range": t["range"], "tickcolor": "#777", "showline": True, "linecolor": "#ddd", "linewidth": 2},
+                "bgcolor": "#f7fafc",
+                "borderwidth": 0,
+                "bar": {"color": color, "thickness": 0.15},
+                "steps": [
+                    {"range": [t["range"][0], t["warn"]], "color": "rgba(45,206,137,0.18)"},
+                    {"range": [t["warn"], t["crit"]], "color": "rgba(240,173,78,0.18)"},
+                    {"range": [t["crit"], t["range"][1]], "color": "rgba(229,83,83,0.18)"},
+                ],
+                "threshold": {"line": {"color": "#cc3f3f", "width": 5}, "value": t["crit"], "thickness": 0.7},
+            },
+        )
+    )
+
     fig.update_layout(
         height=height,
-        margin=dict(t=35, b=10, l=10, r=10),
+        margin=dict(t=40, b=10, l=20, r=20),
         template="plotly_white",
+        font={"family": "Segoe UI, Verdana, Geneva, Tahoma, sans-serif"},
         paper_bgcolor="rgba(0,0,0,0)",
-        font=dict(family='Segoe UI, Verdana, Geneva, Tahoma, sans-serif'),
     )
     return fig
+
 
 def create_trend_chart(df, param):
     t = STATUS_THRESHOLDS[param]
     status_color = STATUS_COLORS[get_status(df[param].iloc[-1], param)]
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=df.index, y=df[param], mode="lines", line=dict(width=3, color=status_color), hoverinfo="x+y"))
-    fig.add_hline(y=t["warn"], line_dash="dash", line_color="#f0ad4e", annotation_text="Warning", annotation_font=dict(size=12), annotation_position="top left")
-    fig.add_hline(y=t["crit"], line_dash="dash", line_color="#e55353", annotation_text="Critical", annotation_font=dict(size=12), annotation_position="top left")
+    fig.add_trace(
+        go.Scatter(
+            x=df.index,
+            y=df[param],
+            mode="lines",
+            line=dict(width=3, color=status_color),
+            hoverinfo="x+y",
+        )
+    )
+    fig.add_hline(
+        y=t["warn"],
+        line_dash="dash",
+        line_color="#f0ad4e",
+        annotation_text="Warning",
+        annotation_font=dict(size=12),
+        annotation_position="top left",
+    )
+    fig.add_hline(
+        y=t["crit"],
+        line_dash="dash",
+        line_color="#e55353",
+        annotation_text="Critical",
+        annotation_font=dict(size=12),
+        annotation_position="top left",
+    )
     fig.update_layout(
         title=f"{param.capitalize()} Trend",
-        height=360,
-        margin=dict(l=40, r=40, t=50, b=30),
+        height=350,
+        margin=dict(l=50, r=50, t=50, b=30),
         template="plotly_white",
         yaxis=dict(range=t["range"], gridcolor="#e2e8f0", zerolinecolor="#cbd5e1"),
         xaxis_title="Time",
         showlegend=False,
         title_x=0.5,
-        hovermode="x unified"
+        hovermode="x unified",
     )
     return fig
 
+
 def fetch_data():
     try:
-        resp = supabase_client.table("air_compressor").select("*").order("timestamp", desc=True).limit(120).execute()
+        resp = (
+            supabase_client.table("air_compressor")
+            .select("*")
+            .order("timestamp", desc=True)
+            .limit(120)
+            .execute()
+        )
         if not resp.data:
             return pd.DataFrame()
         df = pd.DataFrame(resp.data)
-        ist = pytz.timezone('Asia/Kolkata')
+        ist = pytz.timezone("Asia/Kolkata")
         df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.tz_convert(ist)
         return df.set_index("timestamp").sort_index()
     except Exception as e:
         st.error(f"Error fetching data: {e}")
         return pd.DataFrame()
 
+
 # --- Sidebar ---
 with st.sidebar:
     st.markdown("<div class='sidebar-title'>Navigation</div>", unsafe_allow_html=True)
     app_mode = st.radio("View Mode", ["Live Dashboard", "Database"])
 
+
 # --- Title ---
 st.title("⚙️ Air Compressor Monitoring Dashboard")
+
 
 # --- Main ---
 data = fetch_data()
@@ -197,6 +232,7 @@ if app_mode == "Live Dashboard":
         st.warning("No data available. Please check your ESP32 connection.")
     else:
         latest = data.iloc[-1]
+
         col_gauges, col_charts = st.columns([1, 3])
 
         with col_gauges:
@@ -216,7 +252,9 @@ elif app_mode == "Database":
     with end_col:
         end_date = st.date_input("End Date", datetime.now().date())
     with param_col:
-        selected_params = st.multiselect("Select Parameter(s):", ["temperature", "pressure", "vibration"], default=["temperature", "pressure", "vibration"])
+        selected_params = st.multiselect(
+            "Select Parameter(s):", ["temperature", "pressure", "vibration"], default=["temperature", "pressure", "vibration"]
+        )
 
     try:
         ist = pytz.timezone("Asia/Kolkata")
@@ -225,7 +263,13 @@ elif app_mode == "Database":
         start_utc = ist.localize(start_dt).astimezone(pytz.utc)
         end_utc = ist.localize(end_dt).astimezone(pytz.utc)
 
-        resp = supabase_client.table("air_compressor").select("*").gte("timestamp", start_utc.isoformat()).lte("timestamp", end_utc.isoformat()).execute()
+        resp = (
+            supabase_client.table("air_compressor")
+            .select("*")
+            .gte("timestamp", start_utc.isoformat())
+            .lte("timestamp", end_utc.isoformat())
+            .execute()
+        )
         df = pd.DataFrame(resp.data)
         if df.empty:
             st.warning("No data found in selected range.")
