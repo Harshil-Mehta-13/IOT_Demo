@@ -17,19 +17,6 @@ st.markdown("""
 .status-normal {background-color: #2ec27e;}
 .status-warning {background-color: #ffcc00; color: black;}
 .status-critical {background-color: #ff4b4b;}
-.metric-container {
-    background-color: #1E1E1E;
-    border-radius: 8px;
-    padding: 8px 15px;
-    margin: 6px 0;
-    color: white;
-    text-align: center;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.25);
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    min-width:100px;
-}
-.metric-title {font-size: 13px; font-weight: 600;}
-.metric-value {font-size: 20px; font-weight: 700;}
 .sidebar-title {
     font-weight: bold; font-size: 18px; margin-bottom: 10px;
     padding: 8px 12px; border-radius: 6px;
@@ -61,21 +48,7 @@ def get_status(val, param):
     elif val > t["warn"]: return "warning"
     return "normal"
 
-def render_kpi(param, value):
-    status = get_status(value, param)
-    status_class = f"status-{status}"
-    val_str = "N/A" if pd.isna(value) else f"{value:.2f}"
-    st.markdown(f"""
-    <div class="metric-container">
-        <div class="metric-title">{param.capitalize()}</div>
-        <div style="display:flex; gap:8px; align-items:center; justify-content:center;">
-            <div class="metric-value">{val_str}</div>
-            <div class="status-badge {status_class}">{status.capitalize()}</div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-def create_gauge(value, param, height=200, font_size=20):
+def create_gauge(value, param, height=220, font_size=22):
     key = param.lower()
     if key not in STATUS_THRESHOLDS: return go.Figure()
     t = STATUS_THRESHOLDS[key]
@@ -84,8 +57,8 @@ def create_gauge(value, param, height=200, font_size=20):
     fig = go.Figure(go.Indicator(
         mode="gauge+number",
         value=(0 if pd.isna(value) else value),
-        number={'font': {'size': font_size, 'color': color}},
-        title={'text': param.capitalize(), 'font': {'size': 14}},
+        number={'font': {'size': font_size, 'color': color}, 'valueformat': '.2f'},
+        title={'text': param.capitalize(), 'font': {'size': 16}},
         gauge={
             'axis': {'range': t["range"], 'tickcolor': "darkgray"},
             'bar': {'color': color, 'thickness': 0.35},
@@ -97,7 +70,7 @@ def create_gauge(value, param, height=200, font_size=20):
             'threshold': {'line': {'color': "red", 'width': 3}, 'value': t["crit"]}
         }
     ))
-    fig.update_layout(height=height, margin=dict(t=20, b=10, l=10, r=10), template="plotly_white")
+    fig.update_layout(height=height, margin=dict(t=30, b=20, l=20, r=20), template="plotly_white")
     return fig
 
 def create_trend_chart(df, param):
@@ -105,9 +78,9 @@ def create_trend_chart(df, param):
     status_color = STATUS_COLORS[get_status(df[param].iloc[-1], param)]
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=df.index, y=df[param], mode="lines", line=dict(width=2.5, color=status_color)))
-    fig.add_hline(y=t["warn"], line_dash="dash", line_color="orange")
-    fig.add_hline(y=t["crit"], line_dash="dash", line_color="red")
-    fig.update_layout(title=f"{param.capitalize()} Trend", height=350, margin=dict(l=30,r=30,t=40,b=30),
+    fig.add_hline(y=t["warn"], line_dash="dash", line_color="orange", annotation_text="Warning", annotation_position="bottom right")
+    fig.add_hline(y=t["crit"], line_dash="dash", line_color="red", annotation_text="Critical", annotation_position="bottom right")
+    fig.update_layout(title=f"{param.capitalize()} Trend (Last 120 readings)", height=250, margin=dict(l=30,r=30,t=40,b=30),
                       template="plotly_white", yaxis=dict(range=t["range"]), showlegend=False, title_x=0.5)
     return fig
 
@@ -137,23 +110,21 @@ if app_mode == "Live Dashboard":
     st_autorefresh(interval=5000, key="dashboard_refresh")
 
     if data.empty:
-        st.warning("No data available. Showing last 100 entries if available.")
-        data = fetch_data().tail(100)
-
-    if not data.empty:
+        st.warning("No data available to display.")
+    else:
         latest = data.iloc[-1]
-        col_gauges, col_kpis = st.columns([3,1])
-        with col_gauges:
-            row = st.columns(3)
-            for i,p in enumerate(["temperature","pressure","vibration"]):
-                with row[i]:
-                    st.plotly_chart(create_gauge(latest[p], p), use_container_width=True)
-        with col_kpis:
-            for p in ["temperature","pressure","vibration"]:
-                render_kpi(p, latest[p])
+        
+        # Create two main columns: one for gauges, one for charts
+        col_gauges, col_charts = st.columns([1, 2])
 
-        for p in ["temperature","pressure","vibration"]:
-            st.plotly_chart(create_trend_chart(data, p), use_container_width=True)
+        with col_gauges:
+            for p in ["temperature", "pressure", "vibration"]:
+                st.plotly_chart(create_gauge(latest[p], p), use_container_width=True)
+
+        with col_charts:
+            for p in ["temperature", "pressure", "vibration"]:
+                st.plotly_chart(create_trend_chart(data, p), use_container_width=True)
+
 
 elif app_mode == "Database":
     st.subheader("Explore Raw Data")
