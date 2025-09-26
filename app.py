@@ -75,29 +75,30 @@ def render_kpi(param, value):
     </div>
     """, unsafe_allow_html=True)
 
-def create_gauge(value, param, height=200, font_size=20):
+def create_gauge(value, param, height=220, font_size=22):
     key = param.lower()
     if key not in STATUS_THRESHOLDS: return go.Figure()
     t = STATUS_THRESHOLDS[key]
     status = get_status(value, key)
     color = STATUS_COLORS[status]
+
     fig = go.Figure(go.Indicator(
         mode="gauge+number",
         value=(0 if pd.isna(value) else value),
         number={'font': {'size': font_size, 'color': color}},
-        title={'text': param.capitalize(), 'font': {'size': 14}},
+        title={'text': param.capitalize(), 'font': {'size': 15}},
         gauge={
             'axis': {'range': t["range"], 'tickcolor': "darkgray"},
-            'bar': {'color': color, 'thickness': 0.35},
+            'bar': {'color': color, 'thickness': 0.3},
             'steps': [
-                {'range': [t["range"][0], t["warn"]], 'color': "#e6f7ec"},
-                {'range': [t["warn"], t["crit"]], 'color': "#fff0d9"},
-                {'range': [t["crit"], t["range"][1]], 'color': "#ffe6e9"},
+                {'range': [t["range"][0], t["warn"]], 'color': "#d4f7df"},   # safe
+                {'range': [t["warn"], t["crit"]], 'color': "#ffe680"},      # warning
+                {'range': [t["crit"], t["range"][1]], 'color': "#ff9999"},  # critical
             ],
-            'threshold': {'line': {'color': "red", 'width': 3}, 'value': t["crit"]}
+            'threshold': {'line': {'color': "red", 'width': 4}, 'value': t["crit"]}
         }
     ))
-    fig.update_layout(height=height, margin=dict(t=20, b=10, l=10, r=10), template="plotly_white")
+    fig.update_layout(height=height, margin=dict(t=25, b=10, l=10, r=10), template="plotly_white")
     return fig
 
 def create_trend_chart(df, param):
@@ -142,16 +143,21 @@ if app_mode == "Live Dashboard":
 
     if not data.empty:
         latest = data.iloc[-1]
-        col_gauges, col_kpis = st.columns([3,1])
+        col_kpis, col_gauges = st.columns([1,3])
+
+        # KPIs on left
+        with col_kpis:
+            for p in ["temperature","pressure","vibration"]:
+                render_kpi(p, latest[p])
+
+        # Gauges on right
         with col_gauges:
             row = st.columns(3)
             for i,p in enumerate(["temperature","pressure","vibration"]):
                 with row[i]:
                     st.plotly_chart(create_gauge(latest[p], p), use_container_width=True)
-        with col_kpis:
-            for p in ["temperature","pressure","vibration"]:
-                render_kpi(p, latest[p])
 
+        # Trend charts stacked
         for p in ["temperature","pressure","vibration"]:
             st.plotly_chart(create_trend_chart(data, p), use_container_width=True)
 
