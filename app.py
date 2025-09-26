@@ -50,16 +50,15 @@ def get_status(val, param):
     if key not in STATUS_THRESHOLDS or pd.isna(val):
         return "normal"
     t = STATUS_THRESHOLDS[key]
-    if val > t["crit"]: return "critical"
-    elif val > t["warn"]: return "warning"
+    if val > t["crit"]:
+        return "critical"
+    elif val > t["warn"]:
+        return "warning"
     return "normal"
 
-# Gauge with embedded number + status text annotation
-def create_gauge(value, param, height=240):
+def create_gauge(value, param, height=230):
     key = param.lower()
-    if key not in STATUS_THRESHOLDS:
-        return go.Figure()
-
+    if key not in STATUS_THRESHOLDS: return go.Figure()
     t = STATUS_THRESHOLDS[key]
     status = get_status(value, key)
     color = STATUS_COLORS[status]
@@ -69,33 +68,30 @@ def create_gauge(value, param, height=240):
     fig = go.Figure(go.Indicator(
         mode="gauge+number",
         value=val_display,
-        number={'font': {'size': 40, 'color': color, 'family': 'Segoe UI, Verdana, Geneva, Tahoma, sans-serif'},
-                'suffix': f"\n{status_text}"},
-        title={'text': f"<b>{param.capitalize()}</b>", 'font': {'size': 18, 'color': '#444'}},
+        number={'font': {'size': 46, 'color': color,
+                         'family': 'Segoe UI, Verdana, Geneva, Tahoma, sans-serif'},
+                'suffix': f"<br><span style='font-size:16px;color:#555;font-weight:600'>{status_text}</span>",
+                'valueformat':".2f"},
+        title={'text': f"<b>{param.capitalize()}</b>", 'font': {'size': 18, 'color': '#334e68'}},
         gauge={
-            'axis': {'range': t["range"], 'tickcolor': "#999", 'tickwidth': 1, 'ticklen': 7},
-            'bgcolor': "white",
-            'bar': {'color': color, 'thickness': 0.12},
+            'axis': {'range': t["range"], 'tickcolor': "#777", 'showline': True, 'linecolor': '#ddd', 'linewidth': 2},
+            'bgcolor': "#f7fafc",
             'borderwidth': 0,
+            'bar': {'color': color, 'thickness': 0.15},
             'steps': [
-                {'range': [t["range"][0], t["warn"]], 'color': "rgba(44,201,126, 0.15)"},
-                {'range': [t["warn"], t["crit"]], 'color': "rgba(255,204,0, 0.15)"},
-                {'range': [t["crit"], t["range"][1]], 'color': "rgba(255,75,75, 0.15)"},
+                {'range': [t["range"][0], t["warn"]], 'color': "rgba(45,206,137,0.18)"},
+                {'range': [t["warn"], t["crit"]], 'color': "rgba(240,173,78,0.18)"},
+                {'range': [t["crit"], t["range"][1]], 'color': "rgba(229,83,83,0.18)"},
             ],
-            'threshold': {
-                'line': {'color': "#e74c3c", 'width': 4},
-                'value': t["crit"],
-                'thickness': 0.75
-            }
+            'threshold': {'line': {'color': "#cc3f3f", 'width': 5}, 'value': t["crit"], 'thickness': 0.7}
         }
     ))
-
     fig.update_layout(
         height=height,
         margin=dict(t=30, b=10, l=10, r=10),
         template="plotly_white",
         paper_bgcolor="rgba(0,0,0,0)",
-        font=dict(family='Segoe UI, Verdana, Geneva, Tahoma, sans-serif'),
+        font={'family': 'Segoe UI, Verdana, Geneva, Tahoma, sans-serif'},
     )
     return fig
 
@@ -103,18 +99,19 @@ def create_trend_chart(df, param):
     t = STATUS_THRESHOLDS[param]
     status_color = STATUS_COLORS[get_status(df[param].iloc[-1], param)]
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=df.index, y=df[param], mode="lines", line=dict(width=3, color=status_color)))
-    fig.add_hline(y=t["warn"], line_dash="dash", line_color="orange", annotation_text="Warning", annotation_position="top left")
-    fig.add_hline(y=t["crit"], line_dash="dash", line_color="red", annotation_text="Critical", annotation_position="top left")
+    fig.add_trace(go.Scatter(x=df.index, y=df[param], mode="lines", line=dict(width=3, color=status_color), hoverinfo="x+y"))
+    fig.add_hline(y=t["warn"], line_dash="dash", line_color="#f0ad4e", annotation_text="Warning", annotation_font=dict(size=12), annotation_position="top left")
+    fig.add_hline(y=t["crit"], line_dash="dash", line_color="#e55353", annotation_text="Critical", annotation_font=dict(size=12), annotation_position="top left")
     fig.update_layout(
         title=f"{param.capitalize()} Trend",
         height=350,
-        margin=dict(l=40, r=40, t=50, b=30),
+        margin=dict(l=50, r=50, t=50, b=30),
         template="plotly_white",
-        yaxis=dict(range=t["range"]),
+        yaxis=dict(range=t["range"], gridcolor="#e2e8f0", zerolinecolor="#cbd5e1"),
         xaxis_title="Time",
         showlegend=False,
-        title_x=0.5
+        title_x=0.5,
+        hovermode="x unified"
     )
     return fig
 
@@ -131,38 +128,28 @@ def fetch_data():
         st.error(f"Error fetching data: {e}")
         return pd.DataFrame()
 
-# --- Sidebar ---
 with st.sidebar:
     st.markdown("<div class='sidebar-title'>Navigation</div>", unsafe_allow_html=True)
     app_mode = st.radio("View Mode", ["Live Dashboard", "Database"])
 
-# --- Title ---
 st.title("⚙️ Air Compressor Monitoring Dashboard")
 
-# --- Main ---
 data = fetch_data()
 if app_mode == "Live Dashboard":
     st_autorefresh(interval=5000, key="dashboard_refresh")
-
     if data.empty:
         st.warning("No data available. Please check your ESP32 connection.")
     else:
         latest = data.iloc[-1]
-
-        # Layout: Two columns (left gauges stacked, right charts stacked)
         col_gauges, col_charts = st.columns([1, 3])
-
         with col_gauges:
             for param in ["temperature", "pressure", "vibration"]:
                 st.plotly_chart(create_gauge(latest[param], param), use_container_width=True)
-
         with col_charts:
             for param in ["temperature", "pressure", "vibration"]:
                 st.plotly_chart(create_trend_chart(data, param), use_container_width=True)
-
 elif app_mode == "Database":
     st.subheader("Explore Raw Data")
-
     start_col, end_col, param_col = st.columns(3)
     with start_col:
         start_date = st.date_input("Start Date", datetime.now().date() - timedelta(days=7))
@@ -170,17 +157,14 @@ elif app_mode == "Database":
         end_date = st.date_input("End Date", datetime.now().date())
     with param_col:
         selected_params = st.multiselect("Select Parameter(s):", ["temperature", "pressure", "vibration"], default=["temperature", "pressure", "vibration"])
-
     try:
         ist = pytz.timezone("Asia/Kolkata")
         start_dt = datetime.combine(start_date, datetime.min.time())
         end_dt = datetime.combine(end_date, datetime.max.time())
         start_utc = ist.localize(start_dt).astimezone(pytz.utc)
         end_utc = ist.localize(end_dt).astimezone(pytz.utc)
-
         resp = supabase_client.table("air_compressor").select("*").gte("timestamp", start_utc.isoformat()).lte("timestamp", end_utc.isoformat()).execute()
         df = pd.DataFrame(resp.data)
-
         if df.empty:
             st.warning("No data found in selected range.")
         else:
@@ -189,5 +173,3 @@ elif app_mode == "Database":
             st.dataframe(df, use_container_width=True, height=500)
             csv = df.to_csv(index=False).encode("utf-8")
             st.download_button("Download CSV", csv, "filtered_data.csv", "text/csv", key="download")
-    except Exception as e:
-        st.error(f"Error fetching data: {e}")
