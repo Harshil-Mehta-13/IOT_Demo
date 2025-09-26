@@ -158,6 +158,7 @@ def create_individual_trend_chart(df, param):
         margin=dict(l=40, r=20, t=50, b=40),
         showlegend=False,
         font=dict(color="#e0e1dd"),
+        yaxis={'range': [0, t['range'][1]]}, # Set Y-axis to start from 0
         title={
             'text': title_text,
             'y':0.95,
@@ -177,43 +178,47 @@ with st.sidebar:
 # --- Main Application ---
 if app_mode == "Live Monitor":
     st_autorefresh(interval=5000, key="dashboard_refresh")
+    
+    # Create a single placeholder for the entire dashboard content to ensure smooth refreshes
+    placeholder = st.empty()
+
     data = fetch_data()
 
-    if data.empty:
-        st.error("SYSTEM OFFLINE - NO DATA RECEIVED")
-    else:
-        latest = data.iloc[-1]
-        
-        # --- Header ---
-        st.markdown(f'''
-        <div class="title-container">
-            <div class="title-text">COMPRESSOR UNIT C-1337 MONITOR</div>
-            <div class="subtitle-text">Last Communication: {latest.name.strftime("%Y-%m-%d %H:%M:%S")}</div>
-        </div>
-        ''', unsafe_allow_html=True)
-        
-        # Filter data for charts to show the last hour relative to the most recent data point
-        latest_timestamp = data.index.max()
-        one_hour_ago = latest_timestamp - timedelta(hours=1)
-        chart_data = data[data.index >= one_hour_ago]
+    with placeholder.container():
+        if data.empty:
+            st.error("SYSTEM OFFLINE - NO DATA RECEIVED")
+        else:
+            latest = data.iloc[-1]
+            
+            # --- Header ---
+            st.markdown(f'''
+            <div class="title-container">
+                <div class="title-text">COMPRESSOR UNIT C-1337 MONITOR</div>
+                <div class="subtitle-text">Last Communication: {latest.name.strftime("%Y-%m-%d %H:%M:%S")}</div>
+            </div>
+            ''', unsafe_allow_html=True)
+            
+            # Filter data for charts to show the last hour relative to the most recent data point
+            latest_timestamp = data.index.max()
+            one_hour_ago = latest_timestamp - timedelta(hours=1)
+            chart_data = data[data.index >= one_hour_ago]
 
-        # --- Simplified Layout ---
-        # Row 1: Gauges
-        gauge_cols = st.columns(3)
-        for i, p in enumerate(STATUS_THRESHOLDS.keys()):
-            with gauge_cols[i]:
-                st.plotly_chart(create_meter_gauge(latest[p], p), use_container_width=True, config={'displayModeBar': False})
-        
-        # Separation line
-        st.markdown("<hr>", unsafe_allow_html=True)
+            # --- Simplified Layout ---
+            # Row 1: Gauges
+            gauge_cols = st.columns(3)
+            for i, p in enumerate(STATUS_THRESHOLDS.keys()):
+                with gauge_cols[i]:
+                    st.plotly_chart(create_meter_gauge(latest[p], p), use_container_width=True, config={'displayModeBar': False})
+            
+            # Separation line
+            st.markdown("<hr>", unsafe_allow_html=True)
 
-        # Row 2: Charts
-        chart_cols = st.columns(3)
-        for i, p in enumerate(STATUS_THRESHOLDS.keys()):
-             with chart_cols[i]:
-                st.plotly_chart(create_individual_trend_chart(chart_data, p), use_container_width=True, config={'displayModeBar': False})
+            # Row 2: Charts
+            chart_cols = st.columns(3)
+            for i, p in enumerate(STATUS_THRESHOLDS.keys()):
+                 with chart_cols[i]:
+                    st.plotly_chart(create_individual_trend_chart(chart_data, p), use_container_width=True, config={'displayModeBar': False})
         
-
 elif app_mode == "Data Explorer":
     st.subheader("Explore Raw Sensor Data")
     
