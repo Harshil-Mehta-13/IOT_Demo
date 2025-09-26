@@ -46,14 +46,19 @@ st.markdown("""
 .status-critical {background-color: #ff4b4b;}
 
 .sidebar-title {
-    font-size: 20px;
+    font-size: 18px;
     font-weight: bold;
-    margin-bottom: 15px;
+    padding: 5px 0;
+    margin-bottom: 10px;
+    border-bottom: 1px solid #555;
 }
-.sidebar-section {
-    border-bottom: 1px solid #444;
-    padding-bottom: 10px;
-    margin-bottom: 15px;
+.sidebar-note {
+    background-color: #2c2c2c;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    color: #ddd;
+    margin-top: 20px;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -89,7 +94,7 @@ def render_kpi(param, value):
     </div>
     """, unsafe_allow_html=True)
 
-def create_pointer_gauge(param, value):
+def create_pointer_gauge(param, value, height=220, font_size=22):
     t = STATUS_THRESHOLDS[param]
     status = get_status(value, param)
     color = STATUS_COLORS[status]
@@ -97,8 +102,8 @@ def create_pointer_gauge(param, value):
     fig = go.Figure(go.Indicator(
         mode="gauge+number",
         value=value,
-        number={'font': {'size': 22, 'color': color}},
-        title={'text': param.capitalize(), 'font': {'size': 18}},
+        number={'font': {'size': font_size, 'color': color}},
+        title={'text': param.capitalize(), 'font': {'size': 16}},
         gauge={
             'axis': {'range': t["range"], 'tickwidth': 1, 'tickcolor': "darkgray"},
             'bar': {'color': color},
@@ -115,10 +120,9 @@ def create_pointer_gauge(param, value):
                 'thickness': 0.8,
                 'value': t["crit"]
             }
-        },
-        domain={'x': [0, 1], 'y': [0, 1]}
+        }
     ))
-    fig.update_layout(height=220, margin=dict(t=30, b=10, l=10, r=10), template="plotly_white")
+    fig.update_layout(height=height, margin=dict(t=30, b=10, l=10, r=10), template="plotly_white")
     return fig
 
 def create_trend_chart(df, param):
@@ -155,10 +159,9 @@ def fetch_data():
 
 # --- Sidebar ---
 with st.sidebar:
-    st.markdown("<div class='sidebar-title'>⚙️ Dashboard Menu</div>", unsafe_allow_html=True)
-    app_mode = st.radio(" ", ["📊 Live Dashboard", "🗄 Database"], label_visibility="collapsed")
-    st.markdown("<div class='sidebar-section'></div>", unsafe_allow_html=True)
-    st.info("Monitor your **Air Compressor** health in real time.")
+    st.markdown("<div class='sidebar-title'>Dashboard Menu</div>", unsafe_allow_html=True)
+    app_mode = st.radio("Select View", ["Live Dashboard", "Database"])
+    st.markdown("<div class='sidebar-note'>Tip: Use Live Dashboard for real-time monitoring or Database mode to explore historical records.</div>", unsafe_allow_html=True)
 
 # --- Main ---
 st.title("⚙️ Air Compressor Monitoring Dashboard")
@@ -173,24 +176,33 @@ if not data.empty:
         with kpi_cols[i]:
             render_kpi(p, latest[p])
 
-if app_mode == "📊 Live Dashboard":
+if app_mode == "Live Dashboard":
     st_autorefresh(interval=5000, key="dashboard_refresh")
 
     if data.empty:
         st.warning("No data available. Please check your ESP32 connection.")
     else:
-        # Gauges Row
-        gcols = st.columns(3)
-        for i, p in enumerate(["temperature", "pressure", "vibration"]):
-            with gcols[i]:
-                st.plotly_chart(create_pointer_gauge(p, latest[p]), use_container_width=True)
+        # Two-column layout for gauges
+        col1, col2 = st.columns([2, 2])
+
+        # Column 1: gauges stacked vertically
+        with col1:
+            for p in ["temperature", "pressure", "vibration"]:
+                st.plotly_chart(create_pointer_gauge(p, latest[p], height=230, font_size=20), use_container_width=True)
+
+        # Column 2: gauges in one row
+        with col2:
+            gcols = st.columns(3)
+            for i, p in enumerate(["temperature", "pressure", "vibration"]):
+                with gcols[i]:
+                    st.plotly_chart(create_pointer_gauge(p, latest[p], height=180, font_size=18), use_container_width=True)
 
         # Charts stacked vertically
-        st.subheader("📈 Live Trends")
+        st.subheader("Live Trends")
         for param in ["temperature", "pressure", "vibration"]:
             st.plotly_chart(create_trend_chart(data, param), use_container_width=True)
 
-elif app_mode == "🗄 Database":
+elif app_mode == "Database":
     st.subheader("Explore Raw Data")
     start_col, end_col, param_col = st.columns(3)
     with start_col:
