@@ -4,7 +4,7 @@ from supabase import create_client
 import plotly.graph_objects as go
 import pytz
 from datetime import datetime, timedelta
-import time
+from streamlit_autorefresh import st_autorefresh
 
 # --- Config & Styling ---
 st.set_page_config(page_title="Compressor Control", page_icon="🔩", layout="wide", initial_sidebar_state="expanded")
@@ -179,54 +179,44 @@ with st.sidebar:
 # --- Main Application ---
 if app_mode == "Live Monitor":
     
-    # --- Draw the static layout once ---
-    # Header placeholder
-    header_placeholder = st.empty()
-    
-    # Row 1: Gauges placeholders
-    gauge_cols = st.columns(3)
-    gauge_placeholders = [col.empty() for col in gauge_cols]
-    
-    # Separation line
-    st.markdown("<hr>", unsafe_allow_html=True)
+    st_autorefresh(interval=5000, key="dashboard_refresh")
 
-    # Row 2: Charts placeholders
-    chart_cols = st.columns(3)
-    chart_placeholders = [col.empty() for col in chart_cols]
+    data = fetch_data()
 
-    # --- Live update loop ---
-    while True:
-        data = fetch_data()
-
-        if data.empty:
-            header_placeholder.error("SYSTEM OFFLINE - NO DATA RECEIVED")
-        else:
-            latest = data.iloc[-1]
-            
-            # --- Update Header ---
-            header_placeholder.markdown(f'''
-            <div class="title-container">
-                <div class="title-text">COMPRESSOR UNIT C-1337 MONITOR</div>
-                <div class="subtitle-text">Last Communication: {latest.name.strftime("%Y-%m-%d %H:%M:%S")}</div>
-            </div>
-            ''', unsafe_allow_html=True)
-            
-            # Filter data for charts to show the last hour relative to the most recent data point
-            latest_timestamp = data.index.max()
-            one_hour_ago = latest_timestamp - timedelta(hours=1)
-            chart_data = data[data.index >= one_hour_ago]
-
-            # --- Update Gauges ---
-            for i, p in enumerate(STATUS_THRESHOLDS.keys()):
-                fig = create_meter_gauge(latest[p], p)
-                gauge_placeholders[i].plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
-
-            # --- Update Charts ---
-            for i, p in enumerate(STATUS_THRESHOLDS.keys()):
-                fig = create_individual_trend_chart(chart_data, p)
-                chart_placeholders[i].plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
+    if data.empty:
+        st.error("SYSTEM OFFLINE - NO DATA RECEIVED")
+    else:
+        latest = data.iloc[-1]
         
-        time.sleep(5)
+        # --- Update Header ---
+        st.markdown(f'''
+        <div class="title-container">
+            <div class="title-text">COMPRESSOR UNIT C-1337 MONITOR</div>
+            <div class="subtitle-text">Last Communication: {latest.name.strftime("%Y-%m-%d %H:%M:%S")}</div>
+        </div>
+        ''', unsafe_allow_html=True)
+        
+        # Filter data for charts to show the last hour relative to the most recent data point
+        latest_timestamp = data.index.max()
+        one_hour_ago = latest_timestamp - timedelta(hours=1)
+        chart_data = data[data.index >= one_hour_ago]
+
+        # --- Update Gauges ---
+        gauge_cols = st.columns(3)
+        for i, p in enumerate(STATUS_THRESHOLDS.keys()):
+            with gauge_cols[i]:
+                fig = create_meter_gauge(latest[p], p)
+                st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
+        
+        # Separation line
+        st.markdown("<hr>", unsafe_allow_html=True)
+
+        # --- Update Charts ---
+        chart_cols = st.columns(3)
+        for i, p in enumerate(STATUS_THRESHOLDS.keys()):
+            with chart_cols[i]:
+                fig = create_individual_trend_chart(chart_data, p)
+                st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
         
 elif app_mode == "Data Explorer":
     st.subheader("Explore Raw Sensor Data")
