@@ -130,15 +130,17 @@ with st.sidebar:
 
 st.title("⚙️ Air Compressor Monitoring Dashboard")
 
+# Add autorefresh using the st_autorefresh function
+count = st_autorefresh(interval=5000, key="dashboard_refresh")
+
 data = fetch_data()
 if app_mode == "Live Dashboard":
-    st.autorefresh(interval=5000, key="dashboard_refresh")
     if data.empty:
         st.warning("No data available. Please check your ESP32 connection.")
     else:
         latest = data.iloc[-1]
         col_kpis, col_gauges = st.columns([1,3])
-        
+
         with col_kpis:
             for p in ["temperature","pressure","vibration"]:
                 render_kpi(p, latest[p])
@@ -155,9 +157,12 @@ if app_mode == "Live Dashboard":
 elif app_mode == "Database":
     st.subheader("Explore Raw Data")
     start_col, end_col, param_col = st.columns(3)
-    with start_col: start_date = st.date_input("Start Date", datetime.now().date()-timedelta(days=7))
-    with end_col: end_date = st.date_input("End Date", datetime.now().date())
-    with param_col: selected_params = st.multiselect("Select Parameter(s):", ["temperature","pressure","vibration"], default=["temperature","pressure","vibration"])
+    with start_col:
+        start_date = st.date_input("Start Date", datetime.now().date()-timedelta(days=7))
+    with end_col:
+        end_date = st.date_input("End Date", datetime.now().date())
+    with param_col:
+        selected_params = st.multiselect("Select Parameter(s):", ["temperature","pressure","vibration"], default=["temperature","pressure","vibration"])
     try:
         ist = pytz.timezone("Asia/Kolkata")
         start_dt = datetime.combine(start_date, datetime.min.time())
@@ -169,7 +174,8 @@ elif app_mode == "Database":
         if df.empty:
             st.warning("No data found in selected range.")
         else:
-            if selected_params: df = df[["timestamp"]+selected_params]
+            if selected_params:
+                df = df[["timestamp"]+selected_params]
             st.dataframe(df, use_container_width=True, height=500)
             st.download_button("Download CSV", df.to_csv(index=False).encode("utf-8"), "filtered_data.csv", "text/csv", key="download")
     except Exception as e:
