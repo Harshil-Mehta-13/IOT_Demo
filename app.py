@@ -26,6 +26,9 @@ st.markdown("""
     #MainMenu, footer, header { visibility: hidden; }
     
     /* --- Custom Elements --- */
+    .title-container {
+        margin-top: -70px; /* Pulls the entire content block upwards */
+    }
     .title-text {
         font-size: 36px;
         font-weight: 700;
@@ -168,8 +171,12 @@ if app_mode == "Live Monitor":
         latest = data.iloc[-1]
         
         # --- Header ---
-        st.markdown(f'<div class="title-text">COMPRESSOR UNIT C-1337 MONITOR</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="subtitle-text">Last Communication: {latest.name.strftime("%Y-%m-%d %H:%M:%S")}</div>', unsafe_allow_html=True)
+        st.markdown(f'''
+        <div class="title-container">
+            <div class="title-text">COMPRESSOR UNIT C-1337 MONITOR</div>
+            <div class="subtitle-text">Last Communication: {latest.name.strftime("%Y-%m-%d %H:%M:%S")}</div>
+        </div>
+        ''', unsafe_allow_html=True)
         
         # --- Simplified Layout ---
         # Row 1: Gauges
