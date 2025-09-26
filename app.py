@@ -22,8 +22,8 @@ st.markdown("""
         padding-top: 0rem; /* Removed top padding to lift dashboard */
         padding-bottom: 2rem;
     }
-    /* Hide Streamlit elements */
-    #MainMenu, footer, header { visibility: hidden; }
+    /* Hide Streamlit elements, keeping header for sidebar toggle */
+    #MainMenu, footer { visibility: hidden; }
     
     /* --- Custom Elements --- */
     .title-container {
@@ -111,7 +111,7 @@ def create_meter_gauge(value, param):
         mode="gauge+number",
         value=value if value else 0,
         domain={'x': [0, 1], 'y': [0, 1]},
-        title={'text': title_text, 'font': {'size': 14, 'color': "#aab3c2"}},
+        title={'text': title_text, 'font': {'size': 15, 'color': "#aab3c2"}},
         number={'font': {'size': 36, 'color': color}},
         gauge={
             'axis': {'range': t['range'], 'tickwidth': 1, 'tickcolor': "#778da9"},
@@ -124,13 +124,13 @@ def create_meter_gauge(value, param):
                 {'range': [t['warn'], t['crit']], 'color': 'rgba(233, 196, 106, 0.2)'},
                 {'range': [t['crit'], t['range'][1]], 'color': 'rgba(231, 111, 81, 0.2)'},
             ]}))
-    fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", height=250, margin=dict(l=30, r=30, t=40, b=30))
+    fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", height=250, margin=dict(l=30, r=30, t=50, b=30))
     return fig
 
 def create_individual_trend_chart(df, param):
     fig = go.Figure()
     t = STATUS_THRESHOLDS[param]
-    title_text = f"<b>{t['name']} Trend</b>"
+    title_text = f"{t['name']} Trend"
     
     if not df.empty:
         status_color = STATUS_COLORS[get_status(df[param].iloc[-1], param)]
@@ -140,17 +140,16 @@ def create_individual_trend_chart(df, param):
         fig.add_hline(y=t["crit"], line_dash="dash", line_color="#e76f51", annotation_text="Critical", annotation_position="bottom right")
     
     fig.update_layout(
-        # Remove default title and use annotation instead for better placement
         template="plotly_dark", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0.2)",
         height=280,
-        margin=dict(l=40, r=20, t=50, b=40), # Increased top margin for annotation
+        margin=dict(l=40, r=20, t=70, b=40), # Increased top margin for title
         showlegend=False,
         font=dict(color="#e0e1dd"),
         annotations=[{
             'text': title_text, 'align': 'center', 'showarrow': False,
             'xref': 'paper', 'yref': 'paper',
-            'x': 0.5, 'y': 1.1, # Position at the top center
-            'font': {'size': 16, 'color': "#e0e1dd"}
+            'x': 0.5, 'y': 1.15, # Position at the top center
+            'font': {'size': 15, 'color': "#aab3c2"}
         }]
     )
     return fig
