@@ -74,8 +74,8 @@ def render_kpi(param, value):
     </div>
     """, unsafe_allow_html=True)
 
-# --- Professional Gauge ---
-def create_gauge(value, param, height=230, font_size=28):
+# --- Improved Professional Gauge ---
+def create_gauge(value, param, height=220, font_size=22):
     key = param.lower()
     if key not in STATUS_THRESHOLDS: return go.Figure()
     t = STATUS_THRESHOLDS[key]
@@ -84,31 +84,30 @@ def create_gauge(value, param, height=230, font_size=28):
     fig = go.Figure(go.Indicator(
         mode="gauge+number",
         value=(0 if pd.isna(value) else value),
-        number={'font': {'size': font_size, 'color': color, 'family': 'Segoe UI, Verdana, Geneva, Tahoma, sans-serif'}},
-        title={'text': param.capitalize(), 'font': {'size': 15, 'color': '#666'}},
+        number={'font': {'size': font_size+4, 'color': color, 'family': 'Segoe UI, Verdana, Geneva, Tahoma, sans-serif'}},
+        title={'text': param.capitalize(), 'font': {'size': 13, 'color': '#505050'}},
         gauge={
-            'axis': {'range': t["range"], 'tickcolor': "#888", 'tickwidth': 1, 'ticklen': 6},
+            'axis': {'range': t["range"], 'tickcolor': "#bbb", 'tickwidth': 2, 'ticklen':6},
             'bgcolor': "white",
-            'bar': {'color': color, 'thickness': 0.13},
+            'bar': {'color': color, 'thickness': 0.11},  # slender pointer for modern look
             'borderwidth': 0,
             'steps': [
-                {'range': [t["range"][0], t["warn"]], 'color': "rgba(44,201,126,0.18)"},
-                {'range': [t["warn"], t["crit"]], 'color': "rgba(255,204,0,0.18)"},
-                {'range': [t["crit"], t["range"][1]], 'color': "rgba(255,75,75,0.18)"},
+                {'range': [t["range"][0], t["warn"]], 'color': "rgba(44,201,126, 0.17)"},      # subtle green
+                {'range': [t["warn"], t["crit"]], 'color': "rgba(255,204,0, 0.15)"},           # subtle yellow
+                {'range': [t["crit"], t["range"][1]], 'color': "rgba(255,75,75, 0.15)"},       # subtle red
             ],
             'threshold': {
                 'line': {'color': "#e74c3c", 'width': 4},
                 'value': t["crit"],
-                'thickness': 0.8
+                'thickness': 0.7
             }
         }
     ))
     fig.update_layout(
         height=height,
-        margin=dict(t=22, b=10, l=10, r=10),
-        template="plotly_white",
         paper_bgcolor="rgba(0,0,0,0)",
         font=dict(family="Segoe UI, Verdana, Geneva, Tahoma, sans-serif"),
+        margin=dict(t=18, b=10, l=10, r=10),
     )
     return fig
 
@@ -161,12 +160,14 @@ if app_mode == "Live Dashboard":
             for p in ["temperature","pressure","vibration"]:
                 render_kpi(p, latest[p])
 
-        # Professional Gauges on right, stacked vertically
+        # Gauges on right
         with col_gauges:
-            for p in ["temperature","pressure","vibration"]:
-                st.plotly_chart(create_gauge(latest[p], p), use_container_width=True)
+            row = st.columns(3)
+            for i,p in enumerate(["temperature","pressure","vibration"]):
+                with row[i]:
+                    st.plotly_chart(create_gauge(latest[p], p), use_container_width=True)
 
-        # Trend charts stacked below
+        # Trend charts stacked
         for p in ["temperature","pressure","vibration"]:
             st.plotly_chart(create_trend_chart(data, p), use_container_width=True)
 
