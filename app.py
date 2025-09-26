@@ -192,6 +192,11 @@ if app_mode == "Live Monitor":
         </div>
         ''', unsafe_allow_html=True)
         
+        # Filter data for charts to show the last hour relative to the most recent data point
+        latest_timestamp = data.index.max()
+        one_hour_ago = latest_timestamp - timedelta(hours=1)
+        chart_data = data[data.index >= one_hour_ago]
+
         # --- Simplified Layout ---
         # Row 1: Gauges
         gauge_cols = st.columns(3)
@@ -206,7 +211,7 @@ if app_mode == "Live Monitor":
         chart_cols = st.columns(3)
         for i, p in enumerate(STATUS_THRESHOLDS.keys()):
              with chart_cols[i]:
-                st.plotly_chart(create_individual_trend_chart(data, p), use_container_width=True, config={'displayModeBar': False})
+                st.plotly_chart(create_individual_trend_chart(chart_data, p), use_container_width=True, config={'displayModeBar': False})
         
 
 elif app_mode == "Data Explorer":
