@@ -8,33 +8,71 @@ from datetime import datetime, timedelta
 
 # --- Config & Styling ---
 st.set_page_config(page_title="Air Compressor Dashboard", page_icon="⚙️", layout="wide", initial_sidebar_state="expanded")
+
 st.markdown("""
 <style>
-#MainMenu, footer, header {visibility: hidden;}
-.metric-container {
-    background-color: #fff;
-    border-radius: 8px;
-    padding: 8px 15px;
-    margin: 6px 0;
-    color: #222;
-    border: 1px solid #ecf1f7;
-    box-shadow: 0 2px 8px rgba(39,121,226,0.06);
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    min-width:100px;
+body {
+  background: linear-gradient(135deg, #f0f4f9 0%, #d9e2ec 100%);
+  color: #333;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
-.sidebar-title {
-    font-weight: bold; font-size: 18px; margin-bottom: 10px;
-    padding: 8px 12px; border-radius: 6px;
-    background: linear-gradient(to right, #e3ecfa, #f3f7fb); color:#2779e2;
-    border-left: 5px solid #2779e2;
+.stApp {
+  background: transparent;
+}
+.main > div.block-container {
+  padding-top: 25px;
+  padding-bottom: 25px;
+}
+.metric-container {
+  background: white;
+  border-radius: 12px;
+  padding: 15px 20px;
+  margin: 12px 0;
+  box-shadow:
+    0 2.8px 2.2px rgba(39, 57, 93, 0.03),
+    0 6.7px 5.3px rgba(39, 57, 93, 0.05),
+    0 12.5px 10px rgba(39, 57, 93, 0.07),
+    0 22.3px 17.9px rgba(39, 57, 93, 0.09),
+    0 41.8px 33.4px rgba(39, 57, 93, 0.12),
+    0 100px 80px rgba(39, 57, 93, 0.18);
+}
+.metric-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #52657a;
+  margin-bottom: 12px;
+}
+.status-badge {
+  font-weight: 700;
+  border-radius: 18px;
+  padding: 6px 18px;
+  font-size: 14px;
+  display: inline-block;
+  margin-top: 12px;
+  user-select:none;
+  cursor: default;
+}
+.status-normal {background-color: #2dce89; color: white;}
+.status-warning {background-color: #f0ad4e; color: #3c2e1f;}
+.status-critical {background-color: #e55353; color: white;}
+.sidebar .sidebar-content {
+  background: linear-gradient(180deg, #edf2f7 0%, #e2e8f0 100%);
+  border-radius: 10px;
+  padding: 20px 25px;
+  margin-bottom: 20px;
+}
+h1 {
+  color: #102a43;
+  font-weight: 800;
+  margin-bottom: 20px;
 }
 </style>
 """, unsafe_allow_html=True)
 
-# --- Supabase Setup ---
 @st.cache_resource(ttl=30)
 def init_supabase():
     return create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
+
 supabase_client = init_supabase()
 
 STATUS_THRESHOLDS = {
@@ -42,8 +80,8 @@ STATUS_THRESHOLDS = {
     "pressure": {"warn": 9, "crit": 12, "range": [0, 15]},
     "vibration": {"warn": 3, "crit": 5, "range": [0, 8]},
 }
-STATUS_COLORS = {"normal":"#2ec27e", "warning":"#ffcc00", "critical":"#ff4b4b"}
-STATUS_TEXT = {"normal":"Normal", "warning":"Warning", "critical":"Critical"}
+STATUS_COLORS = {"normal": "#2dce89", "warning": "#f0ad4e", "critical": "#e55353"}
+STATUS_TEXT = {"normal": "Normal", "warning": "Warning", "critical": "Critical"}
 
 def get_status(val, param):
     key = param.lower()
@@ -54,11 +92,14 @@ def get_status(val, param):
         return "critical"
     elif val > t["warn"]:
         return "warning"
-    return "normal"
+    else:
+        return "normal"
 
-def create_gauge(value, param, height=230):
+def create_gauge(value, param, height=240):
     key = param.lower()
-    if key not in STATUS_THRESHOLDS: return go.Figure()
+    if key not in STATUS_THRESHOLDS:
+        return go.Figure()
+
     t = STATUS_THRESHOLDS[key]
     status = get_status(value, key)
     color = STATUS_COLORS[status]
@@ -68,22 +109,40 @@ def create_gauge(value, param, height=230):
     fig = go.Figure(go.Indicator(
         mode="gauge+number",
         value=val_display,
-        number={'font': {'size': 46, 'color': color,
-                         'family': 'Segoe UI, Verdana, Geneva, Tahoma, sans-serif'},
-                'suffix': f"<br><span style='font-size:16px;color:#555;font-weight:600'>{status_text}</span>",
-                'valueformat':".2f"},
-        title={'text': f"<b>{param.capitalize()}</b>", 'font': {'size': 18, 'color': '#334e68'}},
+        number={
+            "font": {
+                "size": 48,
+                "color": color,
+                "family": "Segoe UI, Verdana, Geneva, Tahoma, sans-serif",
+            },
+            "suffix": f"<br><span style='font-size:16px;color:#555;font-weight:600'>{status_text}</span>",
+            "valueformat": ".2f",
+        },
+        title={
+            "text": f"<b>{param.capitalize()}</b>",
+            "font": {"size": 20, "color": "#334e68"},
+        },
         gauge={
-            'axis': {'range': t["range"], 'tickcolor': "#777", 'showline': True, 'linecolor': '#ddd', 'linewidth': 2},
-            'bgcolor': "#f7fafc",
-            'borderwidth': 0,
-            'bar': {'color': color, 'thickness': 0.15},
-            'steps': [
-                {'range': [t["range"][0], t["warn"]], 'color': "rgba(45,206,137,0.18)"},
-                {'range': [t["warn"], t["crit"]], 'color': "rgba(240,173,78,0.18)"},
-                {'range': [t["crit"], t["range"][1]], 'color': "rgba(229,83,83,0.18)"},
+            "axis": {
+                "range": t["range"],
+                "tickcolor": "#777",
+                "showline": True,
+                "linecolor": "#ddd",
+                "linewidth": 2
+            },
+            "bgcolor": "#f7fafc",
+            "borderwidth": 0,
+            "bar": {"color": color, "thickness": 0.15},
+            "steps": [
+                {"range": [t["range"][0], t["warn"]], "color": "rgba(45,206,137,0.18)"},
+                {"range": [t["warn"], t["crit"]], "color": "rgba(240,173,78,0.18)"},
+                {"range": [t["crit"], t["range"][1]], "color": "rgba(229,83,83,0.18)"},
             ],
-            'threshold': {'line': {'color': "#cc3f3f", 'width': 5}, 'value': t["crit"], 'thickness': 0.7}
+            "threshold": {
+                "line": {"color": "#cc3f3f", "width": 5},
+                "value": t["crit"],
+                "thickness": 0.7
+            }
         }
     ))
     fig.update_layout(
@@ -91,7 +150,7 @@ def create_gauge(value, param, height=230):
         margin=dict(t=30, b=10, l=10, r=10),
         template="plotly_white",
         paper_bgcolor="rgba(0,0,0,0)",
-        font={'family': 'Segoe UI, Verdana, Geneva, Tahoma, sans-serif'},
+        font={"family": "Segoe UI, Verdana, Geneva, Tahoma, sans-serif"},
     )
     return fig
 
@@ -99,9 +158,29 @@ def create_trend_chart(df, param):
     t = STATUS_THRESHOLDS[param]
     status_color = STATUS_COLORS[get_status(df[param].iloc[-1], param)]
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=df.index, y=df[param], mode="lines", line=dict(width=3, color=status_color), hoverinfo="x+y"))
-    fig.add_hline(y=t["warn"], line_dash="dash", line_color="#f0ad4e", annotation_text="Warning", annotation_font=dict(size=12), annotation_position="top left")
-    fig.add_hline(y=t["crit"], line_dash="dash", line_color="#e55353", annotation_text="Critical", annotation_font=dict(size=12), annotation_position="top left")
+    fig.add_trace(go.Scatter(
+        x=df.index,
+        y=df[param],
+        mode="lines",
+        line=dict(width=3, color=status_color),
+        hoverinfo="x+y"
+    ))
+    fig.add_hline(
+        y=t["warn"],
+        line_dash="dash",
+        line_color="#f0ad4e",
+        annotation_text="Warning",
+        annotation_font=dict(size=12),
+        annotation_position="top left"
+    )
+    fig.add_hline(
+        y=t["crit"],
+        line_dash="dash",
+        line_color="#e55353",
+        annotation_text="Critical",
+        annotation_font=dict(size=12),
+        annotation_position="top left"
+    )
     fig.update_layout(
         title=f"{param.capitalize()} Trend",
         height=350,
@@ -128,34 +207,29 @@ def fetch_data():
         st.error(f"Error fetching data: {e}")
         return pd.DataFrame()
 
-# --- Sidebar ---
+# Sidebar
 with st.sidebar:
     st.markdown("<div class='sidebar-title'>Navigation</div>", unsafe_allow_html=True)
     app_mode = st.radio("View Mode", ["Live Dashboard", "Database"])
 
-# --- Title ---
+# Title
 st.title("⚙️ Air Compressor Monitoring Dashboard")
 
-# --- Main ---
+# Main
 data = fetch_data()
 if app_mode == "Live Dashboard":
     st_autorefresh(interval=5000, key="dashboard_refresh")
-
     if data.empty:
         st.warning("No data available. Please check your ESP32 connection.")
     else:
         latest = data.iloc[-1]
-
         col_gauges, col_charts = st.columns([1, 3])
-
         with col_gauges:
             for param in ["temperature", "pressure", "vibration"]:
                 st.plotly_chart(create_gauge(latest[param], param), use_container_width=True)
-
         with col_charts:
             for param in ["temperature", "pressure", "vibration"]:
                 st.plotly_chart(create_trend_chart(data, param), use_container_width=True)
-
 elif app_mode == "Database":
     st.subheader("Explore Raw Data")
     start_col, end_col, param_col = st.columns(3)
@@ -165,14 +239,12 @@ elif app_mode == "Database":
         end_date = st.date_input("End Date", datetime.now().date())
     with param_col:
         selected_params = st.multiselect("Select Parameter(s):", ["temperature", "pressure", "vibration"], default=["temperature", "pressure", "vibration"])
-
     try:
         ist = pytz.timezone("Asia/Kolkata")
         start_dt = datetime.combine(start_date, datetime.min.time())
         end_dt = datetime.combine(end_date, datetime.max.time())
         start_utc = ist.localize(start_dt).astimezone(pytz.utc)
         end_utc = ist.localize(end_dt).astimezone(pytz.utc)
-
         resp = supabase_client.table("air_compressor").select("*").gte("timestamp", start_utc.isoformat()).lte("timestamp", end_utc.isoformat()).execute()
         df = pd.DataFrame(resp.data)
         if df.empty:
