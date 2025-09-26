@@ -19,12 +19,36 @@ st.markdown("""
         font-family: 'Orbitron', sans-serif; /* Futuristic font */
     }
     .main .block-container {
-        padding-top: 0.5rem; /* Further reduced top padding */
+        padding-top: 1rem;
         padding-bottom: 2rem;
     }
     /* Hide Streamlit elements */
     #MainMenu, footer, header { visibility: hidden; }
 
+    /* --- NEW: Summary Header --- */
+    .summary-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 15px;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+        color: white;
+    }
+    .summary-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .summary-label {
+        font-size: 14px;
+        color: #e0e1dd;
+    }
+    .summary-value {
+        font-size: 18px;
+        font-weight: 700;
+    }
+    
     /* --- Custom Elements --- */
     .title-text {
         font-size: 36px;
@@ -99,11 +123,17 @@ def get_status(val, param):
     if val >= t["warn"]: return "warning"
     return "normal"
 
+def get_overall_status(latest_row):
+    statuses = [get_status(latest_row[p], p) for p in STATUS_THRESHOLDS.keys()]
+    if "critical" in statuses: return "critical"
+    if "warning" in statuses: return "warning"
+    return "normal"
+
 def create_meter_gauge(value, param):
     t = STATUS_THRESHOLDS[param]
     status = get_status(value, param)
     color = STATUS_COLORS[status]
-    title_text = f"{t['name']} ({t['unit']})"
+    title_text = f"<b>{t['name']} ({t['unit']})</b>"
     fig = go.Figure(go.Indicator(
         mode="gauge+number",
         value=value if value else 0,
@@ -126,8 +156,10 @@ def create_meter_gauge(value, param):
 
 def create_individual_trend_chart(df, param):
     fig = go.Figure()
+    t = STATUS_THRESHOLDS[param]
+    title_text = f"<b>{t['name']} Trend</b>"
+    
     if not df.empty:
-        t = STATUS_THRESHOLDS[param]
         status_color = STATUS_COLORS[get_status(df[param].iloc[-1], param)]
         mode = "lines+markers" if len(df) < 20 else "lines"
         fig.add_trace(go.Scatter(x=df.index, y=df[param], name=t['name'], mode=mode, line=dict(width=3, color=status_color)))
@@ -135,12 +167,18 @@ def create_individual_trend_chart(df, param):
         fig.add_hline(y=t["crit"], line_dash="dash", line_color="#e76f51", annotation_text="Critical", annotation_position="bottom right")
     
     fig.update_layout(
-        title={'text': f"{t['name']} Trend", 'y':0.9, 'x':0.5, 'xanchor': 'center', 'yanchor': 'top'},
+        # Remove default title and use annotation instead for better placement
         template="plotly_dark", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0.2)",
         height=280,
-        margin=dict(l=40, r=20, t=40, b=40),
+        margin=dict(l=40, r=20, t=50, b=40), # Increased top margin for annotation
         showlegend=False,
-        font=dict(color="#e0e1dd")
+        font=dict(color="#e0e1dd"),
+        annotations=[{
+            'text': title_text, 'align': 'center', 'showarrow': False,
+            'xref': 'paper', 'yref': 'paper',
+            'x': 0.5, 'y': 1.1, # Position at the top center
+            'font': {'size': 16, 'color': "#e0e1dd"}
+        }]
     )
     return fig
 
@@ -158,6 +196,30 @@ if app_mode == "Live Monitor":
         st.error("SYSTEM OFFLINE - NO DATA RECEIVED")
     else:
         latest = data.iloc[-1]
+        overall_status = get_overall_status(latest)
+        
+        # --- NEW: Summary Header Bar ---
+        summary_html = f"""
+        <div class="summary-bar status-{overall_status}">
+            <div class="summary-item">
+                <div class="summary-label">OVERALL STATUS</div>
+                <div class="summary-value">{overall_status.upper()}</div>
+            </div>
+            <div class="summary-item">
+                <div class="summary-label">Temp</div>
+                <div class="summary-value text-{get_status(latest['temperature'], 'temperature')}">{latest['temperature']:.1f}°C</div>
+            </div>
+            <div class="summary-item">
+                <div class="summary-label">Pressure</div>
+                <div class="summary-value text-{get_status(latest['pressure'], 'pressure')}">{latest['pressure']:.2f} bar</div>
+            </div>
+            <div class="summary-item">
+                <div class="summary-label">Vibration</div>
+                <div class="summary-value text-{get_status(latest['vibration'], 'vibration')}">{latest['vibration']:.2f} mm/s</div>
+            </div>
+        </div>
+        """
+        st.markdown(summary_html, unsafe_allow_html=True)
         
         # --- Header ---
         st.markdown(f'<div class="title-text">COMPRESSOR UNIT C-1337 MONITOR</div>', unsafe_allow_html=True)
