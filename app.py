@@ -4,7 +4,7 @@ from supabase import create_client
 import plotly.graph_objects as go
 import pytz
 from datetime import datetime, timedelta
-from streamlit_autorefresh import st_autorefresh
+import time
 
 # --- Config & Styling ---
 st.set_page_config(page_title="Compressor Control", page_icon="🔩", layout="wide", initial_sidebar_state="expanded")
@@ -69,8 +69,8 @@ supabase_client = init_supabase()
 # --- Constants & Thresholds ---
 STATUS_THRESHOLDS = {
     "temperature": {"name": "Motor Temperature", "unit": "°C", "warn": 60, "crit": 80, "range": [0, 100]},
-    "pressure": {"name": "Pressure", "unit": "bar", "warn": 9, "crit": 12, "range": [0, 15]},
-    "vibration": {"name": "Vibration", "unit": "mm/s", "warn": 3, "crit": 5, "range": [0, 8]},
+    "pressure": {"name": "Output Pressure", "unit": "bar", "warn": 9, "crit": 12, "range": [0, 15]},
+    "vibration": {"name": "Vibration Level", "unit": "mm/s", "warn": 3, "crit": 5, "range": [0, 8]},
 }
 STATUS_COLORS = {"normal": "#2a9d8f", "warning": "#e9c46a", "critical": "#e76f51"}
 
@@ -78,21 +78,17 @@ STATUS_COLORS = {"normal": "#2a9d8f", "warning": "#e9c46a", "critical": "#e76f51
 @st.cache_data(ttl=5) # Cache data for 5 seconds to prevent re-fetching on every script run
 def fetch_data():
     if not supabase_client:
-        # st.error("Supabase client not initialized. Cannot fetch data.")
         return pd.DataFrame()
     try:
-        # Fetch the 200 most recent records for the live dashboard
         resp = supabase_client.table("air_compressor").select("*").order("timestamp", desc=True).limit(200).execute()
         if not resp.data:
             return pd.DataFrame()
         
         df = pd.DataFrame(resp.data)
         ist = pytz.timezone('Asia/Kolkata')
-        # Convert UTC timestamp from Supabase to datetime objects and then to IST
         df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.tz_convert(ist)
         return df.set_index("timestamp").sort_index()
     except Exception as e:
-        # st.error(f"Error fetching data: {e}")
         return pd.DataFrame()
 
 def get_status(val, param):
@@ -115,7 +111,7 @@ def create_meter_gauge(value, param):
         number={'font': {'size': 36, 'color': color}},
         gauge={
             'axis': {'range': t['range'], 'tickwidth': 1, 'tickcolor': "#778da9"},
-            'bar': {'color': color, 'thickness': 1}, # Set thickness to 1
+            'bar': {'color': color, 'thickness': 1}, # Set bar thickness to fill the gauge track
             'bgcolor': "rgba(0,0,0,0)",
             'borderwidth': 1,
             'bordercolor': "#415a77",
@@ -173,50 +169,52 @@ def create_individual_trend_chart(df, param):
 
 # --- Sidebar ---
 with st.sidebar:
-    st.markdown("<h1 style='text-align: center; color: #e0e1dd;'>Navigation Panel</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center; color: #e0e1dd;'>CONTROL</h1>", unsafe_allow_html=True)
     app_mode = st.radio("System View", ["Live Monitor", "Data Explorer"], label_visibility="hidden")
 
 # --- Main Application ---
 if app_mode == "Live Monitor":
     
-    st_autorefresh(interval=5000, key="dashboard_refresh")
+    # --- Draw the static layout with placeholders once ---
+    header_placeholder = st.empty()
+    gauge_placeholders = [col.empty() for col in st.columns(3)]
+    st.markdown("<hr>", unsafe_allow_html=True)
+    chart_placeholders = [col.empty() for col in st.columns(3)]
 
-    data = fetch_data()
+    # --- Live update loop ---
+    while True:
+        data = fetch_data()
 
-    if data.empty:
-        st.error("SYSTEM OFFLINE - NO DATA RECEIVED")
-    else:
-        latest = data.iloc[-1]
+        with header_placeholder.container():
+            if data.empty:
+                st.error("SYSTEM OFFLINE - NO DATA RECEIVED")
+            else:
+                latest = data.iloc[-1]
+                st.markdown(f'''
+                <div class="title-container">
+                    <div class="title-text">COMPRESSOR UNIT C-1337 MONITOR</div>
+                    <div class="subtitle-text">Last Communication: {latest.name.strftime("%Y-%m-%d %H:%M:%S")}</div>
+                </div>
+                ''', unsafe_allow_html=True)
+                
+                # Filter data for charts to show the last hour relative to the most recent data point
+                latest_timestamp = data.index.max()
+                one_hour_ago = latest_timestamp - timedelta(hours=1)
+                chart_data = data[data.index >= one_hour_ago]
+
+                # --- Update Gauges ---
+                for i, p in enumerate(STATUS_THRESHOLDS.keys()):
+                    with gauge_placeholders[i]:
+                        fig = create_meter_gauge(latest[p], p)
+                        st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
+
+                # --- Update Charts ---
+                for i, p in enumerate(STATUS_THRESHOLDS.keys()):
+                    with chart_placeholders[i]:
+                        fig = create_individual_trend_chart(chart_data, p)
+                        st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
         
-        # --- Update Header ---
-        st.markdown(f'''
-        <div class="title-container">
-            <div class="title-text">COMPRESSOR UNIT C-1337 MONITOR</div>
-            <div class="subtitle-text">Last Communication: {latest.name.strftime("%Y-%m-%d %H:%M:%S")}</div>
-        </div>
-        ''', unsafe_allow_html=True)
-        
-        # Filter data for charts to show the last hour relative to the most recent data point
-        latest_timestamp = data.index.max()
-        one_hour_ago = latest_timestamp - timedelta(hours=1)
-        chart_data = data[data.index >= one_hour_ago]
-
-        # --- Update Gauges ---
-        gauge_cols = st.columns(3)
-        for i, p in enumerate(STATUS_THRESHOLDS.keys()):
-            with gauge_cols[i]:
-                fig = create_meter_gauge(latest[p], p)
-                st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
-        
-        # Separation line
-        st.markdown("<hr>", unsafe_allow_html=True)
-
-        # --- Update Charts ---
-        chart_cols = st.columns(3)
-        for i, p in enumerate(STATUS_THRESHOLDS.keys()):
-            with chart_cols[i]:
-                fig = create_individual_trend_chart(chart_data, p)
-                st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
+        time.sleep(5)
         
 elif app_mode == "Data Explorer":
     st.subheader("Explore Raw Sensor Data")
@@ -248,9 +246,7 @@ elif app_mode == "Data Explorer":
             if df.empty:
                 st.warning("No data found in the selected date range.")
             else:
-                # Convert timestamp from UTC to IST
                 df['timestamp'] = pd.to_datetime(df['timestamp']).dt.tz_convert(ist)
-                # Format the timestamp for display
                 df['timestamp'] = df['timestamp'].dt.strftime('%d-%m-%Y %H:%M:%S')
                 
                 display_cols = ["timestamp"] + selected_params if selected_params else ["timestamp"]
