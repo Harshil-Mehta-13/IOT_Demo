@@ -115,37 +115,42 @@ def create_gauge(value, param, height=240):
     status_text = STATUS_TEXT[status]
     val_display = 0 if pd.isna(value) else value
 
-    fig = go.Figure(
-        go.Indicator(
-            mode="gauge+number",
-            value=val_display,
-            number={
-                "font": {"size": 48, "color": color, "family": "Segoe UI, Verdana, Geneva, Tahoma, sans-serif"},
-                "suffix": f"<br><span style='font-size:16px;color:#555;font-weight:600'>{status_text}</span>",
-                "valueformat": ".2f",
-            },
-            title={"text": f"<b>{param.capitalize()}</b>", "font": {"size": 20, "color": "#334e68"}},
-            gauge={
-                "axis": {"range": t["range"], "tickcolor": "#777", "showline": True, "linecolor": "#ddd", "linewidth": 2},
-                "bgcolor": "#f7fafc",
-                "borderwidth": 0,
-                "bar": {"color": color, "thickness": 0.15},
-                "steps": [
-                    {"range": [t["range"][0], t["warn"]], "color": "rgba(45,206,137,0.18)"},
-                    {"range": [t["warn"], t["crit"]], "color": "rgba(240,173,78,0.18)"},
-                    {"range": [t["crit"], t["range"][1]], "color": "rgba(229,83,83,0.18)"},
-                ],
-                "threshold": {"line": {"color": "#cc3f3f", "width": 5}, "value": t["crit"], "thickness": 0.7},
-            },
-        )
-    )
+    fig = go.Figure(go.Indicator(
+        mode="gauge+number",
+        value=val_display,
+        number={
+            "font": {"size": 48, "color": color,
+                     "family": "Segoe UI, Verdana, Geneva, Tahoma, sans-serif"},
+            "suffix": f"<br><span style='font-size:16px;color:#555;font-weight:600'>{status_text}</span>",
+            "valueformat": ".2f",
+        },
+        title={
+            "text": f"<b>{param.capitalize()}</b>",
+            "font": {"size": 20, "color": "#334e68"},
+        },
+        gauge={
+            "axis": {"range": t["range"], "tickcolor": "#777", "showline": True,
+                     "linecolor": "#ddd", "linewidth": 2},
+            "bgcolor": "#f7fafc",
+            "borderwidth": 0,
+            "bar": {"color": color, "thickness": 0.15},
+            "steps": [
+                {"range": [t["range"][0], t["warn"]], "color": "rgba(45,206,137,0.18)"},
+                {"range": [t["warn"], t["crit"]], "color": "rgba(240,173,78,0.18)"},
+                {"range": [t["crit"], t["range"][1]], "color": "rgba(229,83,83,0.18)"},
+            ],
+            "threshold": {"line": {"color": "#cc3f3f", "width": 5},
+                          "value": t["crit"], "thickness": 0.7},
+        },
+        domain={"x": [0, 1], "y": [0, 1]}  # explicitly specify domain
+    ))
 
     fig.update_layout(
         height=height,
-        margin=dict(t=40, b=10, l=20, r=20),
+        margin=dict(t=30, b=10, l=10, r=10),
         template="plotly_white",
-        font={"family": "Segoe UI, Verdana, Geneva, Tahoma, sans-serif"},
         paper_bgcolor="rgba(0,0,0,0)",
+        font={"family": "Segoe UI, Verdana, Geneva, Tahoma, sans-serif"},
     )
     return fig
 
@@ -154,31 +159,17 @@ def create_trend_chart(df, param):
     t = STATUS_THRESHOLDS[param]
     status_color = STATUS_COLORS[get_status(df[param].iloc[-1], param)]
     fig = go.Figure()
-    fig.add_trace(
-        go.Scatter(
-            x=df.index,
-            y=df[param],
-            mode="lines",
-            line=dict(width=3, color=status_color),
-            hoverinfo="x+y",
-        )
-    )
-    fig.add_hline(
-        y=t["warn"],
-        line_dash="dash",
-        line_color="#f0ad4e",
-        annotation_text="Warning",
-        annotation_font=dict(size=12),
-        annotation_position="top left",
-    )
-    fig.add_hline(
-        y=t["crit"],
-        line_dash="dash",
-        line_color="#e55353",
-        annotation_text="Critical",
-        annotation_font=dict(size=12),
-        annotation_position="top left",
-    )
+    fig.add_trace(go.Scatter(
+        x=df.index,
+        y=df[param],
+        mode="lines",
+        line=dict(width=3, color=status_color),
+        hoverinfo="x+y",
+    ))
+    fig.add_hline(y=t["warn"], line_dash="dash", line_color="#f0ad4e",
+                  annotation_text="Warning", annotation_font=dict(size=12), annotation_position="top left")
+    fig.add_hline(y=t["crit"], line_dash="dash", line_color="#e55353",
+                  annotation_text="Critical", annotation_font=dict(size=12), annotation_position="top left")
     fig.update_layout(
         title=f"{param.capitalize()} Trend",
         height=350,
@@ -195,17 +186,11 @@ def create_trend_chart(df, param):
 
 def fetch_data():
     try:
-        resp = (
-            supabase_client.table("air_compressor")
-            .select("*")
-            .order("timestamp", desc=True)
-            .limit(120)
-            .execute()
-        )
+        resp = supabase_client.table("air_compressor").select("*").order("timestamp", desc=True).limit(120).execute()
         if not resp.data:
             return pd.DataFrame()
         df = pd.DataFrame(resp.data)
-        ist = pytz.timezone("Asia/Kolkata")
+        ist = pytz.timezone('Asia/Kolkata')
         df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.tz_convert(ist)
         return df.set_index("timestamp").sort_index()
     except Exception as e:
@@ -252,9 +237,7 @@ elif app_mode == "Database":
     with end_col:
         end_date = st.date_input("End Date", datetime.now().date())
     with param_col:
-        selected_params = st.multiselect(
-            "Select Parameter(s):", ["temperature", "pressure", "vibration"], default=["temperature", "pressure", "vibration"]
-        )
+        selected_params = st.multiselect("Select Parameter(s):", ["temperature", "pressure", "vibration"], default=["temperature", "pressure", "vibration"])
 
     try:
         ist = pytz.timezone("Asia/Kolkata")
@@ -263,13 +246,7 @@ elif app_mode == "Database":
         start_utc = ist.localize(start_dt).astimezone(pytz.utc)
         end_utc = ist.localize(end_dt).astimezone(pytz.utc)
 
-        resp = (
-            supabase_client.table("air_compressor")
-            .select("*")
-            .gte("timestamp", start_utc.isoformat())
-            .lte("timestamp", end_utc.isoformat())
-            .execute()
-        )
+        resp = supabase_client.table("air_compressor").select("*").gte("timestamp", start_utc.isoformat()).lte("timestamp", end_utc.isoformat()).execute()
         df = pd.DataFrame(resp.data)
         if df.empty:
             st.warning("No data found in selected range.")
