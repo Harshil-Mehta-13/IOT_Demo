@@ -19,7 +19,7 @@ st.markdown("""
         font-family: 'Orbitron', sans-serif; /* Futuristic font */
     }
     .main .block-container {
-        padding-top: 2rem;
+        padding-top: 1rem; /* Reduced top padding */
         padding-bottom: 2rem;
     }
     /* Hide Streamlit elements */
@@ -46,41 +46,6 @@ st.markdown("""
         font-size: 14px;
         color: #778da9;
         margin-bottom: 25px;
-    }
-
-    /* --- Status Indicator --- */
-    .status-indicator {
-        text-align: center;
-        padding: 10px;
-    }
-    .status-indicator-title {
-        color: #778da9;
-        font-size: 16px;
-        font-weight: 700;
-        margin-bottom: 10px;
-    }
-    .status-indicator-value {
-        font-size: 40px;
-        font-weight: 700;
-        padding: 10px 20px;
-        border-radius: 8px;
-        display: inline-block;
-        color: white;
-    }
-    
-    /* --- System Log --- */
-    .log-title {
-        color: #e0e1dd;
-        font-size: 18px;
-        margin-bottom: 10px;
-        border-bottom: 1px solid #415a77;
-        padding-bottom: 5px;
-    }
-    .log-entry {
-        font-family: 'monospace';
-        font-size: 12px;
-        padding: 3px 0;
-        color: #adb5bd;
     }
 
     /* --- Status Colors --- */
@@ -167,7 +132,8 @@ def create_meter_gauge(value, param):
                 {'range': [t['warn'], t['crit']], 'color': 'rgba(233, 196, 106, 0.2)'},
                 {'range': [t['crit'], t['range'][1]], 'color': 'rgba(231, 111, 81, 0.2)'},
             ]}))
-    fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", height=250, margin=dict(l=30, r=30, t=40, b=30))
+    # Reduced top margin to fix container spacing issue
+    fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", height=250, margin=dict(l=30, r=30, t=30, b=30))
     return fig
 
 def create_individual_trend_chart(df, param):
@@ -184,25 +150,12 @@ def create_individual_trend_chart(df, param):
         title={'text': f"{t['name']} Trend", 'y':0.9, 'x':0.5, 'xanchor': 'center', 'yanchor': 'top'},
         template="plotly_dark", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0.2)",
         height=280,
-        margin=dict(l=40, r=20, t=40, b=40),
+        # Reduced top margin
+        margin=dict(l=40, r=20, t=30, b=40),
         showlegend=False,
         font=dict(color="#e0e1dd")
     )
     return fig
-
-def generate_system_log(df):
-    log_entries = []
-    if not df.empty:
-        df_rev = df.iloc[::-1]
-        for param in STATUS_THRESHOLDS.keys():
-            prev_status = "normal"
-            for timestamp, row in df_rev.iterrows():
-                current_status = get_status(row[param], param)
-                if current_status != prev_status:
-                    message = f"[{timestamp.strftime('%H:%M:%S')}] {STATUS_THRESHOLDS[param]['name']} entered <span class='text-{current_status}'>{current_status.upper()}</span> state."
-                    log_entries.append(message)
-                prev_status = current_status
-    return log_entries[-6:][::-1]
 
 # --- Sidebar ---
 with st.sidebar:
@@ -218,13 +171,12 @@ if app_mode == "Live Monitor":
         st.error("SYSTEM OFFLINE - NO DATA RECEIVED")
     else:
         latest = data.iloc[-1]
-        overall_status = get_overall_status(latest)
-
+        
         # --- Header ---
         st.markdown(f'<div class="title-text">COMPRESSOR UNIT C-1337 MONITOR</div>', unsafe_allow_html=True)
         st.markdown(f'<div class="subtitle-text">Last Communication: {latest.name.strftime("%Y-%m-%d %H:%M:%S")}</div>', unsafe_allow_html=True)
         
-        # --- Redesigned Layout ---
+        # --- Simplified Layout ---
         # Row 1: Gauges
         gauge_cols = st.columns(3)
         for i, p in enumerate(STATUS_THRESHOLDS.keys()):
@@ -241,26 +193,6 @@ if app_mode == "Live Monitor":
                 st.plotly_chart(create_individual_trend_chart(data, p), use_container_width=True, config={'displayModeBar': False})
                 st.markdown('</div>', unsafe_allow_html=True)
         
-        # Row 3: Status and Log
-        info_cols = st.columns([1, 2])
-        with info_cols[0]:
-            st.markdown('<div class="hud-container">', unsafe_allow_html=True)
-            st.markdown('<div class="status-indicator">', unsafe_allow_html=True)
-            st.markdown('<div class="status-indicator-title">OVERALL SYSTEM STATUS</div>', unsafe_allow_html=True)
-            st.markdown(f'<div class="status-indicator-value status-{overall_status}">{overall_status.upper()}</div>', unsafe_allow_html=True)
-            st.markdown('</div></div>', unsafe_allow_html=True)
-
-        with info_cols[1]:
-            st.markdown('<div class="hud-container">', unsafe_allow_html=True)
-            st.markdown('<div class="log-title">RECENT SYSTEM EVENTS</div>', unsafe_allow_html=True)
-            log_entries = generate_system_log(data)
-            if log_entries:
-                for entry in log_entries:
-                    st.markdown(f'<div class="log-entry">{entry}</div>', unsafe_allow_html=True)
-            else:
-                st.markdown('<div class="log-entry">No significant status changes detected in recent data.</div>', unsafe_allow_html=True)
-            st.markdown('</div>', unsafe_allow_html=True)
-
 
 elif app_mode == "Data Explorer":
     st.subheader("Explore Raw Sensor Data")
