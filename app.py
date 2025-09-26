@@ -6,27 +6,66 @@ import plotly.graph_objects as go
 import pytz
 from datetime import datetime, timedelta
 
-# --- Config & Styling ---
+# --- Config & Theming ---
 st.set_page_config(page_title="Air Compressor Dashboard", page_icon="⚙️", layout="wide", initial_sidebar_state="expanded")
+
+# Stylish subtle background gradient and card styles
 st.markdown("""
 <style>
-#MainMenu, footer, header {visibility: hidden;}
-.metric-container {
-    background-color: #fff;
-    border-radius: 8px;
-    padding: 8px 15px;
-    margin: 6px 0;
-    color: #222;
-    border: 1px solid #ecf1f7;
-    box-shadow: 0 2px 8px rgba(39,121,226,0.06);
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    min-width:100px;
+body {
+  background: linear-gradient(135deg, #f0f4f9 0%, #d9e2ec 100%);
+  color: #333;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
-.sidebar-title {
-    font-weight: bold; font-size: 18px; margin-bottom: 10px;
-    padding: 8px 12px; border-radius: 6px;
-    background: linear-gradient(to right, #e3ecfa, #f3f7fb); color:#2779e2;
-    border-left: 5px solid #2779e2;
+.stApp {
+  background: transparent;
+}
+.main > div.block-container {
+  padding-top: 30px;
+  padding-bottom: 30px;
+}
+.metric-container {
+  background: white;
+  border-radius: 12px;
+  padding: 15px 20px;
+  margin: 8px 0;
+  box-shadow:
+    0 2.8px 2.2px rgba(39, 57, 93, 0.03),
+    0 6.7px 5.3px rgba(39, 57, 93, 0.05),
+    0 12.5px 10px rgba(39, 57, 93, 0.07),
+    0 22.3px 17.9px rgba(39, 57, 93, 0.09),
+    0 41.8px 33.4px rgba(39, 57, 93, 0.12),
+    0 100px 80px rgba(39, 57, 93, 0.18);
+}
+.metric-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #52657a;
+  margin-bottom: 6px;
+}
+.metric-value {
+  font-size: 30px;
+  font-weight: 700;
+  color: #102a43;
+}
+.status-badge {
+  font-weight: 700;
+  border-radius: 14px;
+  padding: 3px 14px;
+  font-size: 13px;
+  display: inline-block;
+}
+.status-normal {background-color: #2dce89; color: white;}
+.status-warning {background-color: #f0ad4e; color: #3c2e1f;}
+.status-critical {background-color: #e55353; color: white;}
+.sidebar .sidebar-content {
+  background: linear-gradient(180deg, #edf2f7 0%, #e2e8f0 100%);
+  border-radius: 10px;
+  padding: 15px 20px;
+}
+h1 {
+  color: #102a43;
+  font-weight: 700;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -42,7 +81,7 @@ STATUS_THRESHOLDS = {
     "pressure": {"warn": 9, "crit": 12, "range": [0, 15]},
     "vibration": {"warn": 3, "crit": 5, "range": [0, 8]},
 }
-STATUS_COLORS = {"normal":"#2ec27e", "warning":"#ffcc00", "critical":"#ff4b4b"}
+STATUS_COLORS = {"normal":"#2dce89", "warning":"#f0ad4e", "critical":"#e55353"}
 STATUS_TEXT = {"normal":"Normal", "warning":"Warning", "critical":"Critical"}
 
 def get_status(val, param):
@@ -54,12 +93,21 @@ def get_status(val, param):
     elif val > t["warn"]: return "warning"
     return "normal"
 
-# Gauge with embedded number + status text annotation
-def create_gauge(value, param, height=240):
-    key = param.lower()
-    if key not in STATUS_THRESHOLDS:
-        return go.Figure()
+def render_kpi(param, value):
+    status = get_status(value, param)
+    status_class = f"status-{status}"
+    val_str = "N/A" if pd.isna(value) else f"{value:.2f}"
+    st.markdown(f"""
+    <div class="metric-container">
+        <div class="metric-title">{param.capitalize()}</div>
+        <div class="metric-value">{val_str}</div>
+        <div class="status-badge {status_class}">{STATUS_TEXT[status]}</div>
+    </div>
+    """, unsafe_allow_html=True)
 
+def create_gauge(value, param, height=230):
+    key = param.lower()
+    if key not in STATUS_THRESHOLDS: return go.Figure()
     t = STATUS_THRESHOLDS[key]
     status = get_status(value, key)
     color = STATUS_COLORS[status]
@@ -69,30 +117,30 @@ def create_gauge(value, param, height=240):
     fig = go.Figure(go.Indicator(
         mode="gauge+number",
         value=val_display,
-        number={'font': {'size': 40, 'color': color, 'family': 'Segoe UI, Verdana, Geneva, Tahoma, sans-serif'},
-                'suffix': f"\n{status_text}"},
-        title={'text': f"<b>{param.capitalize()}</b>", 'font': {'size': 18, 'color': '#444'}},
+        number={'font': {'size': 46, 'color': color, 'family': 'Segoe UI, Verdana, Geneva, Tahoma, sans-serif'},
+                'suffix': f"<br><span style='font-size:14px;color:#555'>{status_text}</span>"},
+        title={'text': f"<b>{param.capitalize()}</b>", 'font': {'size': 18, 'color': '#334e68'}},
         gauge={
-            'axis': {'range': t["range"], 'tickcolor': "#999", 'tickwidth': 1, 'ticklen': 7},
-            'bgcolor': "white",
-            'bar': {'color': color, 'thickness': 0.12},
+            'axis': {'range': t["range"], 'tickcolor': "#777", 'tickwidth': 1, 'ticklen': 7,
+                     'showline': True, 'linecolor': '#ddd', 'linewidth': 2},
+            'bgcolor': "#f7fafc",
             'borderwidth': 0,
+            'bar': {'color': color, 'thickness': 0.15},
             'steps': [
-                {'range': [t["range"][0], t["warn"]], 'color': "rgba(44,201,126, 0.15)"},
-                {'range': [t["warn"], t["crit"]], 'color': "rgba(255,204,0, 0.15)"},
-                {'range': [t["crit"], t["range"][1]], 'color': "rgba(255,75,75, 0.15)"},
+                {'range': [t["range"][0], t["warn"]], 'color': "rgba(45,206,137, 0.2)"},
+                {'range': [t["warn"], t["crit"]], 'color': "rgba(240,173,78, 0.18)"},
+                {'range': [t["crit"], t["range"][1]], 'color': "rgba(229,83,83, 0.18)"},
             ],
             'threshold': {
-                'line': {'color': "#e74c3c", 'width': 4},
+                'line': {'color': "#cc3f3f", 'width': 5},
                 'value': t["crit"],
-                'thickness': 0.75
+                'thickness': 0.7
             }
         }
     ))
-
     fig.update_layout(
         height=height,
-        margin=dict(t=30, b=10, l=10, r=10),
+        margin=dict(t=35, b=10, l=10, r=10),
         template="plotly_white",
         paper_bgcolor="rgba(0,0,0,0)",
         font=dict(family='Segoe UI, Verdana, Geneva, Tahoma, sans-serif'),
@@ -103,18 +151,19 @@ def create_trend_chart(df, param):
     t = STATUS_THRESHOLDS[param]
     status_color = STATUS_COLORS[get_status(df[param].iloc[-1], param)]
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=df.index, y=df[param], mode="lines", line=dict(width=3, color=status_color)))
-    fig.add_hline(y=t["warn"], line_dash="dash", line_color="orange", annotation_text="Warning", annotation_position="top left")
-    fig.add_hline(y=t["crit"], line_dash="dash", line_color="red", annotation_text="Critical", annotation_position="top left")
+    fig.add_trace(go.Scatter(x=df.index, y=df[param], mode="lines", line=dict(width=3, color=status_color), hoverinfo="x+y"))
+    fig.add_hline(y=t["warn"], line_dash="dash", line_color="#f0ad4e", annotation_text="Warning", annotation_font=dict(size=12), annotation_position="top left")
+    fig.add_hline(y=t["crit"], line_dash="dash", line_color="#e55353", annotation_text="Critical", annotation_font=dict(size=12), annotation_position="top left")
     fig.update_layout(
         title=f"{param.capitalize()} Trend",
-        height=350,
+        height=360,
         margin=dict(l=40, r=40, t=50, b=30),
         template="plotly_white",
-        yaxis=dict(range=t["range"]),
+        yaxis=dict(range=t["range"], gridcolor="#e2e8f0", zerolinecolor="#cbd5e1"),
         xaxis_title="Time",
         showlegend=False,
-        title_x=0.5
+        title_x=0.5,
+        hovermode="x unified"
     )
     return fig
 
@@ -148,8 +197,6 @@ if app_mode == "Live Dashboard":
         st.warning("No data available. Please check your ESP32 connection.")
     else:
         latest = data.iloc[-1]
-
-        # Layout: Two columns (left gauges stacked, right charts stacked)
         col_gauges, col_charts = st.columns([1, 3])
 
         with col_gauges:
@@ -180,7 +227,6 @@ elif app_mode == "Database":
 
         resp = supabase_client.table("air_compressor").select("*").gte("timestamp", start_utc.isoformat()).lte("timestamp", end_utc.isoformat()).execute()
         df = pd.DataFrame(resp.data)
-
         if df.empty:
             st.warning("No data found in selected range.")
         else:
