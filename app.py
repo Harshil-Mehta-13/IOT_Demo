@@ -27,65 +27,69 @@ st.markdown("""
 
     /* --- Custom Containers --- */
     .hud-container {
-        background-color: rgba(13, 29, 43, 0.8);
-        border: 1px solid #00c7ff;
-        box-shadow: 0 0 15px #00c7ff;
+        background-color: #0d1b2a; /* Darker, less saturated blue */
+        border: 1px solid #415a77; /* Subtler border */
+        box-shadow: none; /* Removed glow for a flatter look */
         border-radius: 10px;
-        padding: 20px;
+        padding: 15px;
         margin-bottom: 20px;
+        height: 100%;
     }
     .title-text {
         font-size: 36px;
         font-weight: 700;
-        color: #FFFFFF;
-        text-shadow: 0 0 10px #00c7ff, 0 0 20px #00c7ff;
+        color: #e0e1dd; /* Off-white for less harsh contrast */
+        text-shadow: none; /* Removed glow */
         margin-bottom: 5px;
     }
     .subtitle-text {
         font-size: 14px;
-        color: #AAAAAA;
-        margin-bottom: 20px;
+        color: #778da9;
+        margin-bottom: 25px;
     }
 
     /* --- Status Indicator --- */
     .status-indicator {
         text-align: center;
-        padding: 20px;
+        padding: 10px;
     }
     .status-indicator-title {
-        color: #AAAAAA;
+        color: #778da9;
         font-size: 16px;
+        font-weight: 700;
+        margin-bottom: 10px;
     }
     .status-indicator-value {
-        font-size: 48px;
+        font-size: 40px;
         font-weight: 700;
         padding: 10px 20px;
         border-radius: 8px;
         display: inline-block;
-        margin-top: 10px;
+        color: white;
     }
     
     /* --- System Log --- */
     .log-title {
-        color: #00c7ff;
+        color: #e0e1dd;
         font-size: 18px;
         margin-bottom: 10px;
-        border-bottom: 1px solid #00c7ff;
+        border-bottom: 1px solid #415a77;
         padding-bottom: 5px;
     }
     .log-entry {
         font-family: 'monospace';
-        font-size: 13px;
-        padding: 2px 0;
+        font-size: 12px;
+        padding: 3px 0;
+        color: #adb5bd;
     }
 
     /* --- Status Colors --- */
-    .status-normal { background-color: #2ec27e; box-shadow: 0 0 15px #2ec27e; }
-    .status-warning { background-color: #ffcc00; box-shadow: 0 0 15px #ffcc00; color: #010409 !important; }
-    .status-critical { background-color: #ff4b4b; box-shadow: 0 0 15px #ff4b4b; }
-    .text-normal { color: #2ec27e; }
-    .text-warning { color: #ffcc00; }
-    .text-critical { color: #ff4b4b; }
+    .status-normal { background-color: #2a9d8f; }
+    .status-warning { background-color: #e9c46a; color: #0d1b2a !important; }
+    .status-critical { background-color: #e76f51; }
+    .text-normal { color: #2a9d8f; }
+    .text-warning { color: #e9c46a; }
+    .text-critical { color: #e76f51; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -105,7 +109,7 @@ STATUS_THRESHOLDS = {
     "pressure": {"name": "Output Pressure", "unit": "bar", "warn": 9, "crit": 12, "range": [0, 15]},
     "vibration": {"name": "Vibration Level", "unit": "mm/s", "warn": 3, "crit": 5, "range": [0, 8]},
 }
-STATUS_COLORS = {"normal": "#2ec27e", "warning": "#ffcc00", "critical": "#ff4b4b"}
+STATUS_COLORS = {"normal": "#2a9d8f", "warning": "#e9c46a", "critical": "#e76f51"}
 
 # --- Helper Functions ---
 def fetch_data():
@@ -148,22 +152,22 @@ def create_meter_gauge(value, param):
     title_text = f"{t['name']} ({t['unit']})"
     fig = go.Figure(go.Indicator(
         mode="gauge+number",
-        value=value,
+        value=value if value else 0,
         domain={'x': [0, 1], 'y': [0, 1]},
-        title={'text': title_text, 'font': {'size': 20, 'color': "white"}},
-        number={'font': {'size': 40, 'color': color}},
+        title={'text': title_text, 'font': {'size': 16, 'color': "#e0e1dd"}},
+        number={'font': {'size': 36, 'color': color}},
         gauge={
-            'axis': {'range': t['range'], 'tickwidth': 1, 'tickcolor': "white"},
+            'axis': {'range': t['range'], 'tickwidth': 1, 'tickcolor': "#778da9"},
             'bar': {'color': color, 'thickness': 0.3},
-            'bgcolor': "#010409",
-            'borderwidth': 2,
-            'bordercolor': "#00c7ff",
+            'bgcolor': "rgba(0,0,0,0)",
+            'borderwidth': 1,
+            'bordercolor': "#415a77",
             'steps': [
-                {'range': [t['range'][0], t['warn']], 'color': 'rgba(46, 194, 126, 0.2)'},
-                {'range': [t['warn'], t['crit']], 'color': 'rgba(255, 204, 0, 0.2)'},
-                {'range': [t['crit'], t['range'][1]], 'color': 'rgba(255, 75, 75, 0.2)'},
+                {'range': [t['range'][0], t['warn']], 'color': 'rgba(42, 157, 143, 0.2)'},
+                {'range': [t['warn'], t['crit']], 'color': 'rgba(233, 196, 106, 0.2)'},
+                {'range': [t['crit'], t['range'][1]], 'color': 'rgba(231, 111, 81, 0.2)'},
             ]}))
-    fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", font={'color': "white"}, height=250, margin=dict(l=30, r=30, t=50, b=30))
+    fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", height=250, margin=dict(l=30, r=30, t=40, b=30))
     return fig
 
 def create_individual_trend_chart(df, param):
@@ -171,41 +175,38 @@ def create_individual_trend_chart(df, param):
     if not df.empty:
         t = STATUS_THRESHOLDS[param]
         status_color = STATUS_COLORS[get_status(df[param].iloc[-1], param)]
-        # Use 'lines+markers' if data is sparse to ensure single points are visible
         mode = "lines+markers" if len(df) < 20 else "lines"
         fig.add_trace(go.Scatter(x=df.index, y=df[param], name=t['name'], mode=mode, line=dict(width=3, color=status_color)))
-        # Add warning and critical lines for context
-        fig.add_hline(y=t["warn"], line_dash="dash", line_color="orange", annotation_text="Warning", annotation_position="bottom right")
-        fig.add_hline(y=t["crit"], line_dash="dash", line_color="red", annotation_text="Critical", annotation_position="bottom right")
+        fig.add_hline(y=t["warn"], line_dash="dash", line_color="#e9c46a", annotation_text="Warning", annotation_position="bottom right")
+        fig.add_hline(y=t["crit"], line_dash="dash", line_color="#e76f51", annotation_text="Critical", annotation_position="bottom right")
     
     fig.update_layout(
-        title={'text': f"{STATUS_THRESHOLDS[param]['name']} Trend (Recent Readings)", 'y':0.9, 'x':0.5, 'xanchor': 'center', 'yanchor': 'top'},
-        template="plotly_dark", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(13, 29, 43, 0.5)",
-        height=265, # Reduced height to fit multiple charts
-        margin=dict(l=20, r=20, t=50, b=20),
-        showlegend=False
+        title={'text': f"{t['name']} Trend", 'y':0.9, 'x':0.5, 'xanchor': 'center', 'yanchor': 'top'},
+        template="plotly_dark", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0.2)",
+        height=280,
+        margin=dict(l=40, r=20, t=40, b=40),
+        showlegend=False,
+        font=dict(color="#e0e1dd")
     )
     return fig
 
 def generate_system_log(df):
     log_entries = []
     if not df.empty:
-        # Reverse dataframe to check from oldest to newest
         df_rev = df.iloc[::-1]
         for param in STATUS_THRESHOLDS.keys():
             prev_status = "normal"
             for timestamp, row in df_rev.iterrows():
                 current_status = get_status(row[param], param)
                 if current_status != prev_status:
-                    message = f"[{timestamp.strftime('%H:%M:%S')}] {STATUS_THRESHOLDS[param]['name'].upper()} status changed to <span class='text-{current_status}'>{current_status.upper()}</span> at {row[param]:.2f} {STATUS_THRESHOLDS[param]['unit']}"
+                    message = f"[{timestamp.strftime('%H:%M:%S')}] {STATUS_THRESHOLDS[param]['name']} entered <span class='text-{current_status}'>{current_status.upper()}</span> state."
                     log_entries.append(message)
                 prev_status = current_status
-    # Show last 5 most recent events
-    return log_entries[-5:][::-1]
+    return log_entries[-6:][::-1]
 
 # --- Sidebar ---
 with st.sidebar:
-    st.markdown("<h1 style='text-align: center; color: #00c7ff;'>CONTROL</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center; color: #e0e1dd;'>CONTROL</h1>", unsafe_allow_html=True)
     app_mode = st.radio("System View", ["Live Monitor", "Data Explorer"], label_visibility="hidden")
 
 # --- Main Application ---
@@ -220,53 +221,50 @@ if app_mode == "Live Monitor":
         overall_status = get_overall_status(latest)
 
         # --- Header ---
-        st.markdown(f'<div class="title-text">COMPRESSOR UNIT C-1337</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="subtitle-text">Last Comms: {latest.name.strftime("%Y-%m-%d %H:%M:%S")}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="title-text">COMPRESSOR UNIT C-1337 MONITOR</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="subtitle-text">Last Communication: {latest.name.strftime("%Y-%m-%d %H:%M:%S")}</div>', unsafe_allow_html=True)
         
-        # --- Main Layout ---
-        col1, col2 = st.columns([2, 3])
-        
-        with col1:
-            with st.container():
+        # --- Redesigned Layout ---
+        # Row 1: Gauges
+        gauge_cols = st.columns(3)
+        for i, p in enumerate(STATUS_THRESHOLDS.keys()):
+            with gauge_cols[i]:
                 st.markdown('<div class="hud-container">', unsafe_allow_html=True)
-                st.markdown('<div class="status-indicator">', unsafe_allow_html=True)
-                st.markdown('<div class="status-indicator-title">OVERALL SYSTEM STATUS</div>', unsafe_allow_html=True)
-                st.markdown(f'<div class="status-indicator-value status-{overall_status}">{overall_status.upper()}</div>', unsafe_allow_html=True)
-                st.markdown('</div></div>', unsafe_allow_html=True)
-            
-            for p in STATUS_THRESHOLDS.keys():
-                 with st.container():
-                    st.markdown('<div class="hud-container">', unsafe_allow_html=True)
-                    st.plotly_chart(create_meter_gauge(latest[p], p), use_container_width=True, config={'displayModeBar': False})
-                    st.markdown('</div>', unsafe_allow_html=True)
-
-        with col2:
-            # The 'data' DataFrame is already limited to the last 200 points by fetch_data().
-            # This is sufficient for showing a recent trend of available data.
-            for p in STATUS_THRESHOLDS.keys():
-                with st.container():
-                    st.markdown('<div class="hud-container">', unsafe_allow_html=True)
-                    st.plotly_chart(create_individual_trend_chart(data, p), use_container_width=True, config={'displayModeBar': False})
-                    st.markdown('</div>', unsafe_allow_html=True)
-
-            # System Log
-            with st.container():
-                st.markdown('<div class="hud-container">', unsafe_allow_html=True)
-                st.markdown('<div class="log-title">RECENT SYSTEM EVENTS</div>', unsafe_allow_html=True)
-                # Generate log from the full dataset for a better history
-                log_entries = generate_system_log(data)
-                if log_entries:
-                    for entry in log_entries:
-                        st.markdown(f'<div class="log-entry">{entry}</div>', unsafe_allow_html=True)
-                else:
-                    st.markdown('<div class="log-entry">No significant status changes detected in recent data.</div>', unsafe_allow_html=True)
+                st.plotly_chart(create_meter_gauge(latest[p], p), use_container_width=True, config={'displayModeBar': False})
                 st.markdown('</div>', unsafe_allow_html=True)
+        
+        # Row 2: Charts
+        chart_cols = st.columns(3)
+        for i, p in enumerate(STATUS_THRESHOLDS.keys()):
+             with chart_cols[i]:
+                st.markdown('<div class="hud-container">', unsafe_allow_html=True)
+                st.plotly_chart(create_individual_trend_chart(data, p), use_container_width=True, config={'displayModeBar': False})
+                st.markdown('</div>', unsafe_allow_html=True)
+        
+        # Row 3: Status and Log
+        info_cols = st.columns([1, 2])
+        with info_cols[0]:
+            st.markdown('<div class="hud-container">', unsafe_allow_html=True)
+            st.markdown('<div class="status-indicator">', unsafe_allow_html=True)
+            st.markdown('<div class="status-indicator-title">OVERALL SYSTEM STATUS</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="status-indicator-value status-{overall_status}">{overall_status.upper()}</div>', unsafe_allow_html=True)
+            st.markdown('</div></div>', unsafe_allow_html=True)
+
+        with info_cols[1]:
+            st.markdown('<div class="hud-container">', unsafe_allow_html=True)
+            st.markdown('<div class="log-title">RECENT SYSTEM EVENTS</div>', unsafe_allow_html=True)
+            log_entries = generate_system_log(data)
+            if log_entries:
+                for entry in log_entries:
+                    st.markdown(f'<div class="log-entry">{entry}</div>', unsafe_allow_html=True)
+            else:
+                st.markdown('<div class="log-entry">No significant status changes detected in recent data.</div>', unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
 
 
 elif app_mode == "Data Explorer":
     st.subheader("Explore Raw Sensor Data")
     
-    # Set timezone for default date
     ist = pytz.timezone("Asia/Kolkata")
     today_ist = datetime.now(ist).date()
 
