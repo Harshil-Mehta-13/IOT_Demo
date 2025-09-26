@@ -108,6 +108,25 @@ STATUS_THRESHOLDS = {
 STATUS_COLORS = {"normal": "#2ec27e", "warning": "#ffcc00", "critical": "#ff4b4b"}
 
 # --- Helper Functions ---
+def fetch_data():
+    if not supabase_client:
+        st.error("Supabase client not initialized. Cannot fetch data.")
+        return pd.DataFrame()
+    try:
+        # Fetch a reasonable number of recent records for the live dashboard
+        resp = supabase_client.table("air_compressor").select("*").order("timestamp", desc=True).limit(200).execute()
+        if not resp.data:
+            return pd.DataFrame()
+        
+        df = pd.DataFrame(resp.data)
+        ist = pytz.timezone('Asia/Kolkata')
+        # Convert UTC timestamp from Supabase to datetime objects and then to IST
+        df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.tz_convert(ist)
+        return df.set_index("timestamp").sort_index()
+    except Exception as e:
+        st.error(f"Error fetching data: {e}")
+        return pd.DataFrame()
+
 def get_status(val, param):
     key = param.lower()
     if key not in STATUS_THRESHOLDS or pd.isna(val): return "normal"
@@ -148,10 +167,11 @@ def create_meter_gauge(value, param):
 
 def create_main_trend_chart(df, param_to_show):
     fig = go.Figure()
-    for p in param_to_show:
-        t = STATUS_THRESHOLDS[p]
-        status_color = STATUS_COLORS[get_status(df[p].iloc[-1], p)]
-        fig.add_trace(go.Scatter(x=df.index, y=df[p], name=p.capitalize(), mode="lines", line=dict(width=3, color=status_color)))
+    if not df.empty:
+        for p in param_to_show:
+            t = STATUS_THRESHOLDS[p]
+            status_color = STATUS_COLORS[get_status(df[p].iloc[-1], p)]
+            fig.add_trace(go.Scatter(x=df.index, y=df[p], name=p.capitalize(), mode="lines", line=dict(width=3, color=status_color)))
     
     fig.update_layout(
         title={'text': "PARAMETER TREND ANALYSIS (LAST HOUR)", 'y':0.9, 'x':0.5, 'xanchor': 'center', 'yanchor': 'top'},
@@ -162,16 +182,17 @@ def create_main_trend_chart(df, param_to_show):
 
 def generate_system_log(df):
     log_entries = []
-    # Reverse dataframe to check from oldest to newest
-    df_rev = df.iloc[::-1]
-    for param in STATUS_THRESHOLDS.keys():
-        prev_status = "normal"
-        for timestamp, row in df_rev.iterrows():
-            current_status = get_status(row[param], param)
-            if current_status != prev_status:
-                message = f"[{timestamp.strftime('%H:%M:%S')}] {param.upper()} status changed to <span class='text-{current_status}'>{current_status.upper()}</span> at {row[param]:.2f}"
-                log_entries.append(message)
-            prev_status = current_status
+    if not df.empty:
+        # Reverse dataframe to check from oldest to newest
+        df_rev = df.iloc[::-1]
+        for param in STATUS_THRESHOLDS.keys():
+            prev_status = "normal"
+            for timestamp, row in df_rev.iterrows():
+                current_status = get_status(row[param], param)
+                if current_status != prev_status:
+                    message = f"[{timestamp.strftime('%H:%M:%S')}] {param.upper()} status changed to <span class='text-{current_status}'>{current_status.upper()}</span> at {row[param]:.2f}"
+                    log_entries.append(message)
+                prev_status = current_status
     # Show last 5 most recent events
     return log_entries[-5:][::-1]
 
