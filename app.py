@@ -173,7 +173,7 @@ def create_individual_trend_chart(df, param):
 
 # --- Sidebar ---
 with st.sidebar:
-    st.markdown("<h1 style='text-align: center; color: #e0e1dd;'>CONTROL</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center; color: #e0e1dd;'>Navigation Panel</h1>", unsafe_allow_html=True)
     app_mode = st.radio("System View", ["Live Monitor", "Data Explorer"], label_visibility="hidden")
 
 # --- Main Application ---
