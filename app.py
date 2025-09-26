@@ -106,12 +106,12 @@ def create_meter_gauge(value, param):
     t = STATUS_THRESHOLDS[param]
     status = get_status(value, param)
     color = STATUS_COLORS[status]
-    title_text = f"<b>{t['name']} ({t['unit']})</b>"
+    title_text = f"{t['name']} ({t['unit']})"
     fig = go.Figure(go.Indicator(
         mode="gauge+number",
         value=value if value else 0,
         domain={'x': [0, 1], 'y': [0, 1]},
-        title={'text': title_text, 'font': {'size': 16, 'color': "#e0e1dd"}},
+        title={'text': title_text, 'font': {'size': 14, 'color': "#aab3c2"}},
         number={'font': {'size': 36, 'color': color}},
         gauge={
             'axis': {'range': t['range'], 'tickwidth': 1, 'tickcolor': "#778da9"},
