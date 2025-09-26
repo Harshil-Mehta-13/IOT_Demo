@@ -39,6 +39,7 @@ h1 {
 </style>
 """, unsafe_allow_html=True)
 
+# --- Supabase Setup ---
 @st.cache_resource(ttl=60)
 def init_supabase():
     return create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
@@ -75,29 +76,11 @@ def create_gauge(value, param, height=240):
     val_display = 0 if pd.isna(value) else value
 
     fig = go.Figure(go.Indicator(
-        mode="gauge+number",
+        mode="gauge",
         value=val_display,
-        number={
-            "font": {
-                "size": 48,
-                "color": color,
-                "family": "Segoe UI, Verdana, Geneva, Tahoma, sans-serif",
-            },
-            "suffix": f"<br><span style='font-size:16px;color:#555;font-weight:600'>{status_text}</span>",
-            "valueformat": ".2f",
-        },
-        title={
-            "text": f"<b>{param.capitalize()}</b>",
-            "font": {"size": 20, "color": "#1c2833"},
-        },
+        title={"text": f"<b>{param.capitalize()}</b>", "font": {"size": 20, "color": "#1c2833"}},
         gauge={
-            "axis": {
-                "range": t["range"],
-                "tickcolor": "#777",
-                "showline": True,
-                "linecolor": "#ddd",
-                "linewidth": 2
-            },
+            "axis": {"range": t["range"], "tickcolor": "#777", "showline": True, "linecolor": "#ddd", "linewidth": 2},
             "bgcolor": "#f7fafc",
             "borderwidth": 0,
             "bar": {"color": color, "thickness": 0.15},
@@ -107,15 +90,23 @@ def create_gauge(value, param, height=240):
                 {"range": [t["crit"], t["range"][1]], "color": "rgba(255,75,75,0.16)"},
             ],
             "threshold": {"line": {"color": "#cc3f3f", "width": 5}, "value": t["crit"], "thickness": 0.7},
-        }
+        },
     ))
+
+    # Overlay value and status as annotation inside gauge
+    fig.add_annotation(
+        x=0.5,
+        y=0.3,
+        text=f"<span style='font-size:32px; color:{color}; font-weight:bold'>{val_display:.2f}</span><br><span style='font-size:16px; color:{color}'>{status_text}</span>",
+        showarrow=False,
+        font=dict(family='Segoe UI, Verdana, Geneva, Tahoma, sans-serif')
+    )
 
     fig.update_layout(
         height=height,
-        margin=dict(t=30, b=10, l=10, r=10),
+        margin=dict(t=40,b=10,l=10,r=10),
         template="plotly_white",
         paper_bgcolor="rgba(0,0,0,0)",
-        font={"family": "Segoe UI, Verdana, Geneva, Tahoma, sans-serif"},
     )
     return fig
 
@@ -123,7 +114,6 @@ def create_trend_chart(df, param, height=350):
     t = STATUS_THRESHOLDS[param]
     status_color = STATUS_COLORS[get_status(df[param].iloc[-1], param)]
 
-    # Filter last 1 hour of data
     one_hour_ago = pd.Timestamp.now(tz="Asia/Kolkata") - pd.Timedelta(hours=1)
     df_filtered = df[df.index > one_hour_ago]
 
@@ -189,16 +179,21 @@ st.title("⚙️ Air Compressor Monitoring Dashboard")
 count = st_autorefresh(interval=5000, key="dashboard_refresh")
 
 data = fetch_data()
+
 if app_mode == "Live Dashboard":
     if data.empty:
         st.warning("No data available. Please check your ESP32 connection.")
     else:
         latest = data.iloc[-1]
         col_gauges, col_charts = st.columns([1, 3])
+
         with col_gauges:
+            # vertically stacked gauges with integrated value + status
             for p in ["temperature", "pressure", "vibration"]:
                 st.plotly_chart(create_gauge(latest[p], p), use_container_width=True)
+
         with col_charts:
+            # vertically stacked charts with background and rounded corners
             for p in ["temperature", "pressure", "vibration"]:
                 with st.container():
                     st.markdown('<div class="bg-card">', unsafe_allow_html=True)
@@ -225,6 +220,7 @@ elif app_mode == "Database":
 
         resp = supabase_client.table("air_compressor").select("*").gte("timestamp", start_utc.isoformat()).lte("timestamp", end_utc.isoformat()).execute()
         df = pd.DataFrame(resp.data)
+
         if df.empty:
             st.warning("No data found in selected range.")
         else:
