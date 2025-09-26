@@ -19,35 +19,11 @@ st.markdown("""
         font-family: 'Orbitron', sans-serif; /* Futuristic font */
     }
     .main .block-container {
-        padding-top: 1rem;
+        padding-top: 0rem; /* Removed top padding to lift dashboard */
         padding-bottom: 2rem;
     }
     /* Hide Streamlit elements */
     #MainMenu, footer, header { visibility: hidden; }
-
-    /* --- NEW: Summary Header --- */
-    .summary-bar {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 8px 15px;
-        border-radius: 8px;
-        margin-bottom: 1rem;
-        color: white;
-    }
-    .summary-item {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
-    .summary-label {
-        font-size: 14px;
-        color: #e0e1dd;
-    }
-    .summary-value {
-        font-size: 18px;
-        font-weight: 700;
-    }
     
     /* --- Custom Elements --- */
     .title-text {
@@ -123,12 +99,6 @@ def get_status(val, param):
     if val >= t["warn"]: return "warning"
     return "normal"
 
-def get_overall_status(latest_row):
-    statuses = [get_status(latest_row[p], p) for p in STATUS_THRESHOLDS.keys()]
-    if "critical" in statuses: return "critical"
-    if "warning" in statuses: return "warning"
-    return "normal"
-
 def create_meter_gauge(value, param):
     t = STATUS_THRESHOLDS[param]
     status = get_status(value, param)
@@ -196,30 +166,6 @@ if app_mode == "Live Monitor":
         st.error("SYSTEM OFFLINE - NO DATA RECEIVED")
     else:
         latest = data.iloc[-1]
-        overall_status = get_overall_status(latest)
-        
-        # --- NEW: Summary Header Bar ---
-        summary_html = f"""
-        <div class="summary-bar status-{overall_status}">
-            <div class="summary-item">
-                <div class="summary-label">OVERALL STATUS</div>
-                <div class="summary-value">{overall_status.upper()}</div>
-            </div>
-            <div class="summary-item">
-                <div class="summary-label">Temp</div>
-                <div class="summary-value text-{get_status(latest['temperature'], 'temperature')}">{latest['temperature']:.1f}°C</div>
-            </div>
-            <div class="summary-item">
-                <div class="summary-label">Pressure</div>
-                <div class="summary-value text-{get_status(latest['pressure'], 'pressure')}">{latest['pressure']:.2f} bar</div>
-            </div>
-            <div class="summary-item">
-                <div class="summary-label">Vibration</div>
-                <div class="summary-value text-{get_status(latest['vibration'], 'vibration')}">{latest['vibration']:.2f} mm/s</div>
-            </div>
-        </div>
-        """
-        st.markdown(summary_html, unsafe_allow_html=True)
         
         # --- Header ---
         st.markdown(f'<div class="title-text">COMPRESSOR UNIT C-1337 MONITOR</div>', unsafe_allow_html=True)
