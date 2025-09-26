@@ -166,4 +166,4 @@ def create_trend_chart(df, param, height=300):
 def fetch_live_or_fallback(limit_fallback=100):
     try:
         one_hour_ago = datetime.utcnow() - timedelta(hours=1)
-        # try last
+    except pass
