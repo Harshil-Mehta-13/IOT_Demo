@@ -101,9 +101,9 @@ supabase_client = init_supabase()
 
 # --- Constants & Thresholds ---
 STATUS_THRESHOLDS = {
-    "temperature": {"warn": 60, "crit": 80, "range": [0, 100]},
-    "pressure": {"warn": 9, "crit": 12, "range": [0, 15]},
-    "vibration": {"warn": 3, "crit": 5, "range": [0, 8]},
+    "temperature": {"name": "Motor Temperature", "unit": "°C", "warn": 60, "crit": 80, "range": [0, 100]},
+    "pressure": {"name": "Output Pressure", "unit": "bar", "warn": 9, "crit": 12, "range": [0, 15]},
+    "vibration": {"name": "Vibration Level", "unit": "mm/s", "warn": 3, "crit": 5, "range": [0, 8]},
 }
 STATUS_COLORS = {"normal": "#2ec27e", "warning": "#ffcc00", "critical": "#ff4b4b"}
 
@@ -145,11 +145,12 @@ def create_meter_gauge(value, param):
     t = STATUS_THRESHOLDS[param]
     status = get_status(value, param)
     color = STATUS_COLORS[status]
+    title_text = f"{t['name']} ({t['unit']})"
     fig = go.Figure(go.Indicator(
         mode="gauge+number",
         value=value,
         domain={'x': [0, 1], 'y': [0, 1]},
-        title={'text': param.capitalize(), 'font': {'size': 20, 'color': "white"}},
+        title={'text': title_text, 'font': {'size': 20, 'color': "white"}},
         number={'font': {'size': 40, 'color': color}},
         gauge={
             'axis': {'range': t['range'], 'tickwidth': 1, 'tickcolor': "white"},
@@ -170,13 +171,13 @@ def create_individual_trend_chart(df, param):
     if not df.empty:
         t = STATUS_THRESHOLDS[param]
         status_color = STATUS_COLORS[get_status(df[param].iloc[-1], param)]
-        fig.add_trace(go.Scatter(x=df.index, y=df[param], name=param.capitalize(), mode="lines", line=dict(width=3, color=status_color)))
+        fig.add_trace(go.Scatter(x=df.index, y=df[param], name=t['name'], mode="lines", line=dict(width=3, color=status_color)))
         # Add warning and critical lines for context
         fig.add_hline(y=t["warn"], line_dash="dash", line_color="orange", annotation_text="Warning", annotation_position="bottom right")
         fig.add_hline(y=t["crit"], line_dash="dash", line_color="red", annotation_text="Critical", annotation_position="bottom right")
     
     fig.update_layout(
-        title={'text': f"{param.capitalize()} Trend (Last Hour)", 'y':0.9, 'x':0.5, 'xanchor': 'center', 'yanchor': 'top'},
+        title={'text': f"{STATUS_THRESHOLDS[param]['name']} Trend", 'y':0.9, 'x':0.5, 'xanchor': 'center', 'yanchor': 'top'},
         template="plotly_dark", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(13, 29, 43, 0.5)",
         height=265, # Reduced height to fit multiple charts
         margin=dict(l=20, r=20, t=50, b=20),
@@ -194,7 +195,7 @@ def generate_system_log(df):
             for timestamp, row in df_rev.iterrows():
                 current_status = get_status(row[param], param)
                 if current_status != prev_status:
-                    message = f"[{timestamp.strftime('%H:%M:%S')}] {param.upper()} status changed to <span class='text-{current_status}'>{current_status.upper()}</span> at {row[param]:.2f}"
+                    message = f"[{timestamp.strftime('%H:%M:%S')}] {STATUS_THRESHOLDS[param]['name'].upper()} status changed to <span class='text-{current_status}'>{current_status.upper()}</span> at {row[param]:.2f} {STATUS_THRESHOLDS[param]['unit']}"
                     log_entries.append(message)
                 prev_status = current_status
     # Show last 5 most recent events
@@ -238,16 +239,18 @@ if app_mode == "Live Monitor":
                     st.markdown('</div>', unsafe_allow_html=True)
 
         with col2:
-            # Filter data for the last 1 hour for the charts
-            ist = pytz.timezone('Asia/Kolkata')
-            now_in_ist = datetime.now(ist)
-            one_hour_ago = now_in_ist - timedelta(hours=1)
-            chart_data = data[data.index >= one_hour_ago]
+            # Filter data to the last hour of AVAILABLE data, not wall-clock time
+            if not data.empty:
+                latest_timestamp = data.index.max()
+                one_hour_before_latest = latest_timestamp - timedelta(hours=1)
+                chart_data = data[data.index >= one_hour_before_latest]
+            else:
+                chart_data = pd.DataFrame()
 
             if chart_data.empty:
                 with st.container():
                     st.markdown('<div class="hud-container">', unsafe_allow_html=True)
-                    st.warning("No data recorded in the last hour to display charts.")
+                    st.warning("Insufficient recent data to display charts. Showing latest available log.")
                     st.markdown('</div>', unsafe_allow_html=True)
             else:
                 # Loop to create an individual chart for each parameter
@@ -281,7 +284,13 @@ elif app_mode == "Data Explorer":
     start_col, end_col, param_col = st.columns(3)
     with start_col: start_date = st.date_input("Start Date", today_ist)
     with end_col: end_date = st.date_input("End Date", today_ist)
-    with param_col: selected_params = st.multiselect("Select Parameter(s):", list(STATUS_THRESHOLDS.keys()), default=list(STATUS_THRESHOLDS.keys()))
+    with param_col: 
+        selected_params = st.multiselect(
+            "Select Parameter(s):", 
+            options=list(STATUS_THRESHOLDS.keys()), 
+            default=list(STATUS_THRESHOLDS.keys()),
+            format_func=lambda p: STATUS_THRESHOLDS[p]['name']
+        )
     
     if supabase_client:
         try:
