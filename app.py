@@ -1,96 +1,59 @@
-import streamlit as st
+import os
 import pandas as pd
-from supabase import create_client
-import plotly.graph_objects as go
 import pytz
 from datetime import datetime, timedelta
-from streamlit_autorefresh import st_autorefresh
+from supabase import create_client
 
-# --- Config & Styling ---
-st.set_page_config(page_title="Compressor Control", page_icon="🔩", layout="wide", initial_sidebar_state="expanded")
+import dash
+from dash import dcc, html, dash_table
+from dash.dependencies import Input, Output, State
+import plotly.graph_objects as go
 
-st.markdown("""
-<style>
-    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
-    
-    /* --- Main Body & Theme --- */
-    body {
-        background-color: #010409;
-        font-family: 'Orbitron', sans-serif; /* Futuristic font */
-    }
-    .main .block-container {
-        padding-top: 0rem;
-        padding-bottom: 2rem;
-    }
-    #MainMenu, footer { visibility: hidden; }
-    
-    .title-container {
-        margin-top: -70px;
-    }
-    .title-text {
-        font-size: 36px;
-        font-weight: 700;
-        color: #e0e1dd;
-        margin-bottom: 5px;
-    }
-    .subtitle-text {
-        font-size: 14px;
-        color: #778da9;
-        margin-bottom: 25px;
-    }
-    hr {
-        border-top: 1px solid #415a77;
-        margin: 1rem 0;
-    }
+# --- Supabase Connection ---
+SUPABASE_URL = "https://ynodggqmitbqluwmljjg.supabase.co"
+SUPABASE_KEY = "<YOUR_SUPABASE_KEY>"  # Replace with your valid key
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-    .status-normal { background-color: #2a9d8f; }
-    .status-warning { background-color: #e9c46a; color: #0d1b2a !important; }
-    .status-critical { background-color: #e76f51; }
-    .text-normal { color: #2a9d8f; }
-    .text-warning { color: #e9c46a; }
-    .text-critical { color: #e76f51; }
-</style>
-""", unsafe_allow_html=True)
-
-# --- Supabase Setup ---
-@st.cache_resource(ttl=30)
-def init_supabase():
-    try:
-        return create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
-    except Exception:
-        st.error("Supabase connection failed. Check secrets.")
-        return None
-supabase_client = init_supabase()
-
-# --- Constants & Thresholds ---
+# --- Constants & Configuration ---
 STATUS_THRESHOLDS = {
     "temperature": {"name": "Motor Temperature", "unit": "°C", "warn": 60, "crit": 80, "range": [0, 100]},
     "pressure": {"name": "Output Pressure", "unit": "bar", "warn": 9, "crit": 12, "range": [0, 15]},
     "vibration": {"name": "Vibration Level", "unit": "mm/s", "warn": 3, "crit": 5, "range": [0, 8]},
 }
-STATUS_COLORS = {"normal": "#2a9d8f", "warning": "#e9c46a", "critical": "#e76f51"}
+STATUS_COLORS = {"normal": "#00AEEF", "warning": "#F5A623", "critical": "#D0021B"}
+DARK_THEME = {
+    'background': '#f0f0f0',
+    'component_bg': '#ffffff',
+    'text': '#111111',
+    'text_light': '#555555',
+    'border': '#cccccc'
+}
 
-# --- Helper Functions ---
-@st.cache_data(ttl=5)
-def fetch_data():
-    if not supabase_client:
-        return pd.DataFrame()
+# --- Data Fetching ---
+def fetch_data(start_date=None, end_date=None, desc=True, limit=200):
     try:
-        resp = supabase_client.table("air_compressor").select("*").order("timestamp", desc=True).limit(200).execute()
+        query = supabase.table("air_compressor").select("*")
+        if start_date:
+            query = query.gte("timestamp", start_date)
+        if end_date:
+            end_date_inclusive = datetime.strptime(end_date, '%Y-%m-%d').date() + timedelta(days=1)
+            query = query.lt("timestamp", str(end_date_inclusive))
+        query = query.order("timestamp", desc=desc).limit(limit)
+        resp = query.execute()
         if not resp.data:
             return pd.DataFrame()
-        
         df = pd.DataFrame(resp.data)
-        ist = pytz.timezone('Asia/Kolkata')
+        ist = pytz.timezone("Asia/Kolkata")
         df["timestamp"] = pd.to_datetime(df["timestamp"]).dt.tz_convert(ist)
-        return df.set_index("timestamp").sort_index()
-    except Exception:
+        return df.set_index("timestamp").sort_index(ascending=not desc)
+    except Exception as e:
+        print(f"Error fetching data: {e}")
         return pd.DataFrame()
 
+# --- Helper Functions ---
 def get_status(val, param):
-    key = param.lower()
-    if key not in STATUS_THRESHOLDS or pd.isna(val): return "normal"
-    t = STATUS_THRESHOLDS[key]
+    if pd.isna(val): return "normal"
+    t = STATUS_THRESHOLDS[param]
     if val >= t["crit"]: return "critical"
     if val >= t["warn"]: return "warning"
     return "normal"
@@ -99,153 +62,153 @@ def create_meter_gauge(value, param):
     t = STATUS_THRESHOLDS[param]
     status = get_status(value, param)
     color = STATUS_COLORS[status]
-    title_text = f"{t['name']} ({t['unit']})"
     fig = go.Figure(go.Indicator(
         mode="gauge+number",
-        value=value if value else 0,
-        domain={'x': [0, 1], 'y': [0, 1]},
-        number={'font': {'size': 36, 'color': color}},
+        value=value if pd.notna(value) else 0,
+        number={'font': {'size': 40, 'color': color}, 'suffix': t['unit']},
         gauge={
-            'axis': {'range': t['range'], 'tickwidth': 1, 'tickcolor': "#778da9"},
-            'bar': {'color': color, 'thickness': 1},
-            'bgcolor': "rgba(0,0,0,0)",
-            'borderwidth': 1,
-            'bordercolor': "#415a77",
+            'axis': {'range': t['range'], 'tickwidth': 1, 'tickcolor': DARK_THEME['text']},
+            'bar': {'color': color, 'thickness': 0.5},
+            'bgcolor': 'rgba(0,0,0,0)',
+            'borderwidth': 0,
             'steps': [
-                {'range': [t['range'][0], t['warn']], 'color': 'rgba(42, 157, 143, 0.2)'},
-                {'range': [t['warn'], t['crit']], 'color': 'rgba(233, 196, 106, 0.2)'},
-                {'range': [t['crit'], t['range'][1]], 'color': 'rgba(231, 111, 81, 0.2)'},
-            ]}))
-    fig.update_layout(
-        paper_bgcolor="rgba(0,0,0,0)", 
-        height=250, 
-        margin=dict(l=30, r=30, t=50, b=30),
-        title={
-            'text': title_text,
-            'y':0.95,
-            'x':0.5,
-            'xanchor': 'center',
-            'yanchor': 'top',
-            'font': {'size': 15, 'color': '#aab3c2'}
-        }
-    )
+                {'range': [t['range'][0], t['warn']], 'color': 'rgba(0, 174, 239, 0.3)'},
+                {'range': [t['warn'], t['crit']], 'color': 'rgba(245, 166, 35, 0.3)'},
+                {'range': [t['crit'], t['range'][1]], 'color': 'rgba(208, 2, 27, 0.3)'},
+            ]
+        },
+        title={'text': t['name'], 'font': {'size': 20, 'color': DARK_THEME['text']}}
+    ))
+    fig.update_layout(height=300, width=180, margin=dict(l=10, r=10, t=50, b=10),
+                      paper_bgcolor=DARK_THEME['component_bg'], font_color=DARK_THEME['text'])
     return fig
 
-def create_individual_trend_chart(df, param):
-    fig = go.Figure()
+def create_trend_chart(df, param):
     t = STATUS_THRESHOLDS[param]
-    title_text = f"{t['name']} Trend"
-    
+    latest_val = df[param].iloc[-1] if not df.empty else None
+    status = get_status(latest_val, param)
+    fig = go.Figure()
     if not df.empty:
-        status_color = STATUS_COLORS[get_status(df[param].iloc[-1], param)]
-        mode = "lines+markers" if len(df) < 20 else "lines"
-        fig.add_trace(go.Scatter(x=df.index, y=df[param], name=t['name'], mode=mode, line=dict(width=3, color=status_color)))
-        fig.add_hline(y=t["warn"], line_dash="dash", line_color="#e9c46a", annotation_text="Warning", annotation_position="bottom right")
-        fig.add_hline(y=t["crit"], line_dash="dash", line_color="#e76f51", annotation_text="Critical", annotation_position="bottom right")
-    
-    fig.update_layout(
-        template="plotly_dark", 
-        paper_bgcolor="rgba(0,0,0,0)", 
-        plot_bgcolor="rgba(0,0,0,0.2)",
-        height=280,
-        margin=dict(l=40, r=20, t=50, b=40),
-        showlegend=False,
-        font=dict(color="#e0e1dd"),
-        yaxis={'range': [0, t['range'][1]]},
-        title={
-            'text': title_text,
-            'y':0.95,
-            'x':0.5,
-            'xanchor': 'center',
-            'yanchor': 'top',
-            'font': {'size': 15, 'color': '#aab3c2'}
-        }
-    )
+        fig.add_trace(go.Scatter(
+            x=df.index, y=df[param], mode="lines", line=dict(width=3, color=STATUS_COLORS[status]),
+            fill='tozeroy', fillcolor=f"rgba({int(STATUS_COLORS[status][1:3],16)}, {int(STATUS_COLORS[status][3:5],16)}, {int(STATUS_COLORS[status][5:7],16)}, 0.1)"
+        ))
+    fig.add_hline(y=t["warn"], line_dash="dash", line_color=STATUS_COLORS['warning'], opacity=0.5)
+    fig.add_hline(y=t["crit"], line_dash="dash", line_color=STATUS_COLORS['critical'], opacity=0.5)
+    fig.update_layout(title=f"{t['name']} Trend (Last Hour)", height=500, width=1000,
+                      paper_bgcolor=DARK_THEME['component_bg'], plot_bgcolor=DARK_THEME['background'],
+                      font_color=DARK_THEME['text'], margin=dict(l=50, r=30, t=50, b=50),
+                      yaxis={'range':[0, t['range'][1]*1.05]}, xaxis_title=None, yaxis_title=t['unit'])
     return fig
 
-# --- Sidebar ---
-with st.sidebar:
-    st.markdown("<h1 style='text-align: center; color: #e0e1dd;'>CONTROL</h1>", unsafe_allow_html=True)
-    app_mode = st.radio("System View", ["Live Monitor", "Data Explorer"], label_visibility="hidden")
+# --- Dash App Layout ---
+app = dash.Dash(__name__, external_stylesheets=['https://codepen.io/chriddyp/pen/bWLwgP.css'])
+app.title = "Compressor Live Monitor"
 
-# --- Main Application ---
-if app_mode == "Live Monitor":
-    # Auto refresh every 5 seconds
-    st_autorefresh(interval=5000, key="refresh")
+def build_explorer_layout():
+    return html.Div([
+        html.Div([
+            html.Label("Select Date Range:", style={'marginRight': '10px', 'fontSize': '18px'}),
+            dcc.DatePickerRange(id='date-picker-range', start_date=datetime.now().date() - timedelta(days=7),
+                                end_date=datetime.now().date(), display_format='YYYY-MM-DD', style={'marginRight': '20px', 'fontSize':'16px'}),
+            html.Label("Select Parameters:", style={'marginRight': '10px', 'fontSize':'18px'}),
+            dcc.Dropdown(id='parameter-dropdown',
+                         options=[{'label': v['name'], 'value': k} for k, v in STATUS_THRESHOLDS.items()],
+                         value=list(STATUS_THRESHOLDS.keys()), multi=True, style={'flex': 1, 'minWidth': '300px', 'fontSize':'16px'}),
+            html.Button('Query Database', id='query-button', n_clicks=0, style={'marginLeft': '20px', 'fontSize':'16px'}),
+        ], style={'display': 'flex', 'padding': '20px', 'alignItems': 'center',
+                  'backgroundColor': DARK_THEME['component_bg'], 'borderRadius': '5px', 'marginBottom': '20px'}),
+        dcc.Loading(id="loading-explorer", children=[html.Div(id='explorer-table-container')], type="default")
+    ])
 
-    # --- Draw layout ---
-    header_placeholder = st.empty()
-    gauge_placeholders = [col.empty() for col in st.columns(3)]
-    st.markdown("<hr>", unsafe_allow_html=True)
-    chart_placeholders = [col.empty() for col in st.columns(3)]
+app.layout = html.Div(style={'backgroundColor': DARK_THEME['background'], 'color': DARK_THEME['text'],
+                             'fontFamily': 'sans-serif', 'minHeight': '100vh', 'fontSize':'16px'}, children=[
+    html.Div([
+        html.H1("Air Compressor Live Monitoring Dashboard", style={"textAlign": "center", "marginBottom": "5px"}),
+        dcc.Tabs(id="tabs", value="live", children=[
+            dcc.Tab(label="Live Monitor", value="live"),
+            dcc.Tab(label="Data Explorer", value="explorer")
+        ], style={'height': '44px'},
+                 colors={"border": DARK_THEME['background'], "primary": STATUS_COLORS['normal'], "background": DARK_THEME['component_bg']})
+    ], style={'maxWidth': '1600px', 'margin': 'auto', 'padding': '20px'}),
+    html.Div(id="tab-content", style={'maxWidth': '1600px', 'margin': 'auto', 'padding': '20px'}),
+    dcc.Interval(id="interval", interval=10 * 1000, n_intervals=0)
+])
 
-    # --- Fetch & render ---
-    data = fetch_data()
+# --- Callbacks ---
+@app.callback(Output("tab-content", "children"), Input("tabs", "value"))
+def render_tab_content(tab):
+    if tab == 'live':
+        return html.Div(id='live-content-container')
+    elif tab == 'explorer':
+        return build_explorer_layout()
 
-    with header_placeholder.container():
-        if data.empty:
-            st.error("SYSTEM OFFLINE - NO DATA RECEIVED")
-        else:
-            latest = data.iloc[-1]
-            st.markdown(f'''
-            <div class="title-container">
-                <div class="title-text">COMPRESSOR UNIT C-1337 MONITOR</div>
-                <div class="subtitle-text">Last Communication: {latest.name.strftime("%Y-%m-%d %H:%M:%S")}</div>
-            </div>
-            ''', unsafe_allow_html=True)
-            
-            latest_timestamp = data.index.max()
-            one_hour_ago = latest_timestamp - timedelta(hours=1)
-            chart_data = data[data.index >= one_hour_ago]
-
-            # Gauges
-            for i, p in enumerate(STATUS_THRESHOLDS.keys()):
-                with gauge_placeholders[i]:
-                    st.plotly_chart(create_meter_gauge(latest[p], p), use_container_width=True, config={'displayModeBar': False})
-
-            # Charts
-            for i, p in enumerate(STATUS_THRESHOLDS.keys()):
-                with chart_placeholders[i]:
-                    st.plotly_chart(create_individual_trend_chart(chart_data, p), use_container_width=True, config={'displayModeBar': False})
-
-elif app_mode == "Data Explorer":
-    st.subheader("Explore Raw Sensor Data")
+@app.callback(
+    Output('live-content-container', 'children'),
+    Input('interval', 'n_intervals'),
+    State('tabs', 'value')
+)
+def update_live_view(n, active_tab):
+    if active_tab != 'live': return dash.no_update
     
-    ist = pytz.timezone("Asia/Kolkata")
-    today_ist = datetime.now(ist).date()
+    df = fetch_data(limit=200)
+    if df.empty:
+        return html.Div("⚠️ No Data Received in the Last Hour",
+                        style={"color": STATUS_COLORS['critical'], "textAlign": "center", "marginTop": "50px", "fontSize": "24px"})
 
-    start_col, end_col, param_col = st.columns(3)
-    with start_col: start_date = st.date_input("Start Date", today_ist)
-    with end_col: end_date = st.date_input("End Date", today_ist)
-    with param_col: 
-        selected_params = st.multiselect(
-            "Select Parameter(s):", 
-            options=list(STATUS_THRESHOLDS.keys()), 
-            default=list(STATUS_THRESHOLDS.keys()),
-            format_func=lambda p: STATUS_THRESHOLDS[p]['name']
-        )
+    latest = df.iloc[-1]
+    latest_time = latest.name.strftime("%Y-%m-%d %H:%M:%S")
+    one_hour_ago = df.index.max() - timedelta(hours=1)
+    chart_data = df[df.index >= one_hour_ago]
+
+    return html.Div([
+        html.H4(f"Last Update: {latest_time}", style={"textAlign": "center",
+                                                      "color": DARK_THEME['text_light'],
+                                                      'fontWeight': 'bold', 'fontSize':'18px'}),
+        html.Div([
+            # Parent flex container for 2 columns
+            html.Div([
+                # KPIs / Gauges column (30%)
+                html.Div([dcc.Graph(figure=create_meter_gauge(latest[p], p), config={"displayModeBar": False})
+                          for p in STATUS_THRESHOLDS.keys()],
+                         style={'display': 'flex', 'flexDirection': 'column', 'gap': '20px'})
+            ], style={'width': '30%', 'padding': '10px'}),
+
+            # Trend Charts column (70%)
+            html.Div([dcc.Graph(figure=create_trend_chart(chart_data, p), config={"displayModeBar": False})
+                      for p in STATUS_THRESHOLDS.keys()],
+                     style={'width': '70%', 'padding': '10px', 'display': 'flex', 'flexDirection': 'column', 'gap': '20px'})
+        ], style={'display': 'flex', 'flexDirection': 'row'})
+    ])
+
+@app.callback(
+    Output('explorer-table-container', 'children'),
+    Input('query-button', 'n_clicks'),
+    [State('date-picker-range', 'start_date'), State('date-picker-range', 'end_date'), State('parameter-dropdown', 'value')]
+)
+def update_explorer_table(n_clicks, start_date, end_date, selected_params):
+    if n_clicks == 0: return "Please click 'Query Database' to fetch data."
+    if not selected_params: return html.Div("⚠️ Please select at least one parameter to display.", style={"color": STATUS_COLORS['warning']})
     
-    if supabase_client:
-        try:
-            start_dt = datetime.combine(start_date, datetime.min.time())
-            end_dt = datetime.combine(end_date, datetime.max.time())
-            start_utc = ist.localize(start_dt).astimezone(pytz.utc)
-            end_utc = ist.localize(end_dt).astimezone(pytz.utc)
+    df = fetch_data(start_date=start_date, end_date=end_date, desc=False, limit=2000)
+    if df.empty: return html.Div("⚠️ No Data Found for the Selected Criteria", style={"color": STATUS_COLORS['critical'], "textAlign": "center", "marginTop": "50px", "fontSize": "24px"})
+    
+    df_table = df.reset_index()
+    df_table['timestamp'] = df_table['timestamp'].dt.strftime('%Y-%m-%d %H:%M:%S')
+    display_cols = ['timestamp'] + selected_params
+    df_table = df_table[display_cols]
 
-            resp = supabase_client.table("air_compressor").select("*").gte("timestamp", start_utc.isoformat()).lte("timestamp", end_utc.isoformat()).order("timestamp", desc=True).execute()
-            df = pd.DataFrame(resp.data)
+    return dash_table.DataTable(
+        data=df_table.to_dict("records"),
+        columns=[{"name": c.replace('_', ' ').title(), "id": c} for c in df_table.columns],
+        page_size=20,
+        style_table={"overflowX": "auto"},
+        style_header={'backgroundColor': DARK_THEME['component_bg'], 'fontWeight': 'bold',
+                      'border': f"1px solid {DARK_THEME['border']}", 'fontSize':'16px'},
+        style_cell={'backgroundColor': DARK_THEME['background'], 'color': DARK_THEME['text'],
+                    'border': f"1px solid {DARK_THEME['border']}", 'padding': '10px', 'textAlign': 'left', 'fontSize':'16px'},
+        style_data_conditional=[{'if': {'row_index': 'odd'}, 'backgroundColor': '#f9f9f9'}]
+    )
 
-            if df.empty:
-                st.warning("No data found in the selected date range.")
-            else:
-                df['timestamp'] = pd.to_datetime(df['timestamp']).dt.tz_convert(ist)
-                df['timestamp'] = df['timestamp'].dt.strftime('%d-%m-%Y %H:%M:%S')
-                
-                display_cols = ["timestamp"] + selected_params if selected_params else ["timestamp"]
-                st.dataframe(df[display_cols], use_container_width=True, height=500)
-                csv = df[display_cols].to_csv(index=False).encode('utf-8')
-                st.download_button("Download as CSV", csv, "air_compressor_data.csv", "text/csv", key="download-csv")
-        except Exception as e:
-            st.error(f"An error occurred while fetching data: {e}")
-    else:
-        st.error("Supabase client not initialized. Cannot fetch data.")
+if __name__ == "__main__":
+    app.run_server(debug=True, port=8050)
